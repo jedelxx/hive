@@ -36,7 +36,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 $_SESSION['username']   = $user['username'];
                 $_SESSION['first_name'] = $user['first_name'];
 
-                header("Location: hives_hub.php");
+                if ($user['user_code'] == 3) {
+                    header("Location: admin_dashboard.php");
+                } else {
+                    header("Location: hives_hub.php");
+                }
                 exit();
             }
         } else {
