@@ -37,23 +37,28 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['action'])) {
         $stmt->close();
     }
 
-    // C. Resolve Listing Fraud Report
+// C. Resolve Listing Fraud Report
     elseif ($action === 'resolve_report' && isset($_POST['report_id'], $_POST['resolution'])) {
-        $report_id  = (int) $_POST['report_id'];
-        $resolution = $_POST['resolution']; // 'Confirmed Fraud' or 'Dismissed'
-        $listing_id = (int) ($_POST['listing_id'] ?? 0);
-        $keeper_id  = (int) ($_POST['keeper_id'] ?? 0);
+        $report_id        = (int) $_POST['report_id'];
+        $resolution       = $_POST['resolution']; // 'Confirmed Fraud' or 'Dismissed'
+        $listing_id       = (int) ($_POST['listing_id'] ?? 0);
+        $keeper_id        = (int) ($_POST['keeper_id'] ?? 0);
+        $admin_id         = (int) $_SESSION['user_id'];
+        $resolution_notes = trim($_POST['resolution_notes'] ?? "Resolved as {$resolution}");
 
         if (in_array($resolution, ['Confirmed Fraud', 'Dismissed'])) {
             $conn->begin_transaction();
             try {
-                // Update report status
-                $stmt = $conn->prepare("UPDATE report SET status = ? WHERE report_id = ?");
-                $stmt->bind_param("si", $resolution, $report_id);
+                // Record status, which admin reviewed it, timestamp, and notes
+                $stmt = $conn->prepare("
+                    UPDATE report 
+                    SET status = ?, reviewed_by = ?, reviewed_at = NOW(), resolution_notes = ? 
+                    WHERE report_id = ?
+                ");
+                $stmt->bind_param("sisi", $resolution, $admin_id, $resolution_notes, $report_id);
                 $stmt->execute();
                 $stmt->close();
 
-                // If Confirmed Fraud: take down listing and ban the Keeper
                 if ($resolution === 'Confirmed Fraud') {
                     if ($listing_id > 0) {
                         $stmt2 = $conn->prepare("UPDATE listing SET status = 'Taken Down' WHERE listing_id = ?");
@@ -94,6 +99,21 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['action'])) {
             $stmt->close();
         }
     }
+// E. Moderate Tenant Review Proof
+    elseif ($action === 'moderate_review' && isset($_POST['review_id'], $_POST['decision'])) {
+        $review_id = (int) $_POST['review_id'];
+        $decision  = $_POST['decision']; // 'Verified' or 'Unverified'
+
+        if (in_array($decision, ['Verified', 'Unverified'])) {
+            $is_verified = ($decision === 'Verified') ? 1 : 0;
+            $stmt = $conn->prepare("UPDATE review SET is_verified_tenant = ?, verification_status = ? WHERE review_id = ?");
+            $stmt->bind_param("isi", $is_verified, $decision, $review_id);
+            if ($stmt->execute()) {
+                $message = "Review #{$review_id} marked as {$decision}.";
+            }
+            $stmt->close();
+        }
+    }
 }
 
 // 2. FETCH DASHBOARD METRICS
@@ -114,26 +134,26 @@ $pending_keepers = $conn->query("
 ")->fetch_all(MYSQLI_ASSOC);
 
 // 4. FETCH FRAUD REPORTS
-// $reports = $conn->query("
-//     SELECT 
-//         r.report_id,
-//         r.reason,
-//         r.details,
-//         r.status AS report_status,
-//         r.created_at,
-//         l.listing_id,
-//         l.title AS listing_title,
-//         l.status AS listing_status,
-//         reporter.username AS reporter_username,
-//         keeper.user_id AS keeper_id,
-//         keeper.username AS keeper_username,
-//         keeper.account_status AS keeper_status
-//     FROM report r
-//     JOIN listing l ON r.listing_id = l.listing_id
-//     JOIN user reporter ON r.reporter_id = reporter.user_id
-//     JOIN user keeper ON l.keeper_id = keeper.user_id
-//     ORDER BY FIELD(r.status, 'Pending', 'Confirmed Fraud', 'Dismissed'), r.report_id DESC
-// ")->fetch_all(MYSQLI_ASSOC);
+$reports = $conn->query("
+    SELECT 
+        r.report_id,
+        r.reason,
+        r.status AS report_status,
+        r.resolution_notes,
+        r.created_at,
+        l.listing_id,
+        l.title AS listing_title,
+        l.status AS listing_status,
+        reporter.username AS reporter_username,
+        keeper.user_id AS keeper_id,
+        keeper.username AS keeper_username,
+        keeper.account_status AS keeper_status
+    FROM report r
+    JOIN listing l ON r.listing_id = l.listing_id
+    JOIN user reporter ON r.reporter_id = reporter.user_id
+    JOIN user keeper ON l.keeper_id = keeper.user_id
+    ORDER BY FIELD(r.status, 'Pending', 'Confirmed Fraud', 'Dismissed'), r.report_id DESC
+")->fetch_all(MYSQLI_ASSOC);
 
 // 5. FETCH ALL NON-ADMIN USERS FOR ACCOUNT MODERATION
 $all_users = $conn->query("
@@ -142,6 +162,24 @@ $all_users = $conn->query("
     JOIN user_type ut ON u.user_code = ut.user_code
     WHERE u.user_code != 3
     ORDER BY u.user_id DESC
+")->fetch_all(MYSQLI_ASSOC);
+
+$pending_reviews = $conn->query("
+    SELECT 
+        r.review_id,
+        r.rating,
+        r.comment,
+        r.proof_document_url,
+        r.tenant_status,
+        l.title AS listing_title,
+        u.username AS reviewer_username,
+        u.first_name,
+        u.last_name
+    FROM review r
+    JOIN listing l ON r.listing_id = l.listing_id
+    JOIN user u ON r.reviewer_id = u.user_id
+    WHERE r.verification_status = 'Pending'
+    ORDER BY r.review_id DESC
 ")->fetch_all(MYSQLI_ASSOC);
 ?>
 <!DOCTYPE html>
@@ -260,6 +298,63 @@ $all_users = $conn->query("
     <?php endif; ?>
 </div>
 
+<div class="section">
+    <h3>Tenant Review Proof Verification Queue</h3>
+    <?php if (empty($pending_reviews)): ?>
+        <p style="color:#6b7280;">No tenant reviews awaiting verification.</p>
+    <?php else: ?>
+        <table>
+            <thead>
+                <tr>
+                    <th>Review ID</th>
+                    <th>Listing</th>
+                    <th>Reviewer</th>
+                    <th>Rating & Comment</th>
+                    <th>Tenancy Proof</th>
+                    <th>Decision</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($pending_reviews as $rev): ?>
+                    <tr>
+                        <td>#<?= $rev['review_id'] ?></td>
+                        <td><?= htmlspecialchars($rev['listing_title']) ?></td>
+                        <td>
+                            <?= htmlspecialchars($rev['first_name'] . ' ' . $rev['last_name']) ?><br>
+                            <small>(<?= htmlspecialchars($rev['tenant_status']) ?> Tenant)</small>
+                        </td>
+                        <td>
+                            <strong><?= (int)$rev['rating'] ?> ★</strong><br>
+                            <small><?= htmlspecialchars($rev['comment']) ?></small>
+                        </td>
+                        <td>
+                            <?php if (!empty($rev['proof_document_url'])): ?>
+                                <a href="<?= htmlspecialchars($rev['proof_document_url']) ?>" target="_blank">View Proof Photo</a>
+                            <?php else: ?>
+                                <span style="color:#9ca3af;">No proof attached</span>
+                            <?php endif; ?>
+                        </td>
+                        <td>
+                            <form method="POST" style="display:inline;">
+                                <input type="hidden" name="action" value="moderate_review">
+                                <input type="hidden" name="review_id" value="<?= $rev['review_id'] ?>">
+                                <input type="hidden" name="decision" value="Verified">
+                                <button type="submit" class="btn btn-approve">Accept as Verified</button>
+                            </form>
+                            <form method="POST" style="display:inline;">
+                                <input type="hidden" name="action" value="moderate_review">
+                                <input type="hidden" name="review_id" value="<?= $rev['review_id'] ?>">
+                                <input type="hidden" name="decision" value="Unverified">
+                                <button type="submit" class="btn btn-neutral">Mark Unverified</button>
+                            </form>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+    <?php endif; ?>
+</div>
+
 <!-- 2. FRAUD & LISTING REPORTS QUEUE -->
 <div class="section">
     <h3>Listing Fraud Reports</h3>
@@ -293,7 +388,6 @@ $all_users = $conn->query("
                         <td><?= htmlspecialchars($rep['reporter_username']) ?></td>
                         <td>
                             <strong><?= htmlspecialchars($rep['reason']) ?></strong><br>
-                            <small><?= htmlspecialchars($rep['details'] ?? '') ?></small>
                         </td>
                         <td>
                             <?php
