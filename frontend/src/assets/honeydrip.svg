@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 1440 220"
+     preserveAspectRatio="xMidYMin meet">
+
+  <defs>
+    <linearGradient id="honey" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0%" stop-color="#F4B315"/>
+      <stop offset="20%" stop-color="#F4B315"/>
+      <stop offset="60%" stop-color="#E59312"/>
+      <stop offset="100%" stop-color="#A9610C"/>
+    </linearGradient>
+
+    <filter id="shadow" x="-10%" y="-20%" width="120%" height="150%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="5"/>
+      <feOffset dy="5"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope=".3"/>
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <filter id="grain">
+      <feTurbulence type="fractalNoise"
+        baseFrequency=".55" numOctaves="3" seed="8"/>
+      <feColorMatrix type="saturate" values="0"/>
+      <feComponentTransfer>
+        <feFuncA type="table" tableValues="0 .12"/>
+      </feComponentTransfer>
+    </filter>
+
+    <path id="shape" d="
+      M0 0 H1440 V35
+
+      C1390 35 1370 45 1345 70
+      C1315 100 1295 145 1265 135
+      C1235 125 1240 55 1205 42
+      C1175 30 1150 50 1130 75
+      C1105 105 1080 125 1050 108
+      C1025 93 1025 48 995 38
+      C965 28 945 45 925 75
+      C900 115 875 180 845 165
+      C815 150 820 65 785 48
+      C750 30 725 55 705 82
+      C680 115 655 145 625 128
+      C595 112 600 55 570 38
+      C540 20 515 40 495 70
+      C470 110 445 160 415 145
+      C385 130 390 58 355 43
+      C325 30 305 48 285 72
+      C260 105 235 125 205 110
+      C175 95 180 48 145 38
+      C110 25 90 45 65 58
+      C40 70 20 58 0 65 Z
+    "/>
+
+    <clipPath id="clip">
+      <use href="#shape"/>
+    </clipPath>
+  </defs>
+
+  <use href="#shape" fill="url(#honey)" filter="url(#shadow)"/>
+
+  <g clip-path="url(#clip)">
+    <rect width="1440" height="220"
+          filter="url(#grain)" opacity=".8"/>
+  </g>
+</svg>
