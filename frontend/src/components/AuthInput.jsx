@@ -7,6 +7,7 @@ export default function AuthInput({
   type = "text",
   placeholder,
   autoComplete,
+  error,
 }) {
   const [showPassword, setShowPassword] = useState(false);
 
@@ -26,9 +27,13 @@ export default function AuthInput({
           placeholder={placeholder}
           autoComplete={autoComplete}
           required
-          className={`h-11 w-full rounded-xl border border-[#D3AF85]/50 bg-[#FFFCF5] px-3.5 text-sm text-[#1A141A] outline-none transition placeholder:text-[#B5A69A] focus:border-[#E59312] focus:ring-2 focus:ring-[#E59312]/20 ${
-            isPassword ? "pr-11" : ""
-          }`}
+          aria-invalid={Boolean(error)}
+          aria-describedby={error ? `${name}-error` : undefined}
+          className={`h-11 w-full rounded-xl border bg-[#FFFCF5] px-3.5 text-sm text-[#1A141A] caret-[#F4B315] outline-none transition-all duration-200 placeholder:text-[#B5A69A] ${
+            error
+              ? "border-red-500 ring-2 ring-red-500/20 ring-offset-1"
+              : "border-[#D3AF85]/50 focus:border-[#F4B315] focus:ring-2 focus:ring-[#F4B315]/40 focus:ring-offset-1"
+          } ${isPassword ? "pr-11" : ""}`}
         />
 
         {isPassword && (
@@ -46,6 +51,16 @@ export default function AuthInput({
           </button>
         )}
       </div>
+
+      {error && (
+        <p
+          id={`${name}-error`}
+          role="alert"
+          className="font-manrope text-xs text-red-600"
+        >
+          {error}
+        </p>
+      )}
     </div>
   );
 }

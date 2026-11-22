@@ -9,33 +9,26 @@ body {
   font-family: "Manrope", sans-serif;
 }
 
-/* HIVE CUSTOM INTERFACE */
-
-/* Yellow typing caret */
 html,
 body {
   caret-color: #f4b315;
 }
 
-/* Yellow text highlighting */
 ::selection {
   background-color: #f4b315;
   color: #1a141a;
 }
 
-/* Yellow scrollbar */
 html {
   scrollbar-color: #e59312 #fff9e8;
   scrollbar-width: thin;
 }
 
-/* Keep text-editing cursor behavior */
 input,
 textarea {
   cursor: text;
 }
 
-/* Floating honeycomb */
 @keyframes float {
   0%,
   100% {
@@ -46,7 +39,6 @@ textarea {
   }
 }
 
-/* Bee movements */
 @keyframes beeFlying1 {
   0%,
   100% {

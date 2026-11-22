@@ -1,16 +1,42 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import AuthLayout from "../../components/AuthLayout";
 import AuthInput from "../../components/AuthInput";
 
 export default function Login() {
+  const [errors, setErrors] = useState({});
+  const [loginError, setLoginError] = useState("");
+
   function handleLogin(event) {
     event.preventDefault();
+
+    const formData = new FormData(event.currentTarget);
+
+    const username = String(formData.get("username") || "").trim();
+    const password = String(formData.get("password") || "");
+
+    const newErrors = {};
+
+    if (!username) {
+      newErrors.username = "Please enter your username or email.";
+    }
+
+    if (!password.trim()) {
+      newErrors.password = "Please enter your password.";
+    }
+
+    setErrors(newErrors);
+    setLoginError("");
+
+    if (Object.keys(newErrors).length > 0) {
+      return;
+    }
   }
 
   return (
     <AuthLayout
       title="Log in to Hive"
-      subtitle="Welcome back! We're glad to see you."
+      subtitle="Welcome back! Let's find your next hive."
       footer={
         <>
           Don't have an account?{" "}
@@ -18,17 +44,18 @@ export default function Login() {
             to="/signup"
             className="font-bold text-[#8E5915] hover:text-[#E59312] hover:underline"
           >
-            Sign up here
+            Create account here
           </Link>
         </>
       }
     >
-      <form onSubmit={handleLogin} className="flex flex-col gap-5">
+      <form onSubmit={handleLogin} noValidate className="flex flex-col gap-5">
         <AuthInput
           label="Username or Email"
           name="username"
-          placeholder="Enter your username or email"
+          placeholder="e.g., hive_user@gmail.com"
           autoComplete="username"
+          error={errors.username}
         />
 
         <AuthInput
@@ -37,6 +64,7 @@ export default function Login() {
           type="password"
           placeholder="Enter your password"
           autoComplete="current-password"
+          error={errors.password || loginError}
         />
 
         <button
