@@ -13,37 +13,47 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $last_name  = trim($_POST['last_name']);
     $contact_no = trim($_POST['contact_no']);
     $sex        = $_POST['sex'];
-    $id_type    = !empty($_POST['id_type']) ? trim($_POST['id_type']) : null;
+    $id_type    = null;
     $id_doc_url = null;
 
-    // Validate Keeper ID upload requirement
-    if ($user_code === 2) {
-        if (empty($id_type) || empty($_FILES['id_document']['name'])) {
-            $message = "Keepers must select an ID type and upload a valid ID image.";
+    // Validate document upload for both Seekers (PUP COR) and Keepers (Valid ID)
+    if (in_array($user_code, [1, 2], true)) {
+        if ($user_code === 2 && empty(trim($_POST['id_type'] ?? ''))) {
+            $message = "Please select a valid ID type.";
+        } elseif (!isset($_FILES['id_document']) || $_FILES['id_document']['error'] !== UPLOAD_ERR_OK) {
+            $message = ($user_code === 1)
+                ? "Please upload your PUP Certificate of Registration (COR) to verify your student status."
+                : "Please upload a valid ID document.";
         } else {
-            $upload_dir = "uploads/";
-            if (!is_dir($upload_dir)) {
-                mkdir($upload_dir, 0777, true);
-            }
+            $allowed_ext = ['jpg', 'jpeg', 'png', 'pdf'];
             $ext = strtolower(pathinfo($_FILES['id_document']['name'], PATHINFO_EXTENSION));
-            $allowed = ['jpg', 'jpeg', 'png', 'pdf'];
 
-            if (!in_array($ext, $allowed)) {
-                $message = "Invalid file type. Only JPG, PNG, or PDF allowed.";
+            if (!in_array($ext, $allowed_ext, true)) {
+                $message = "Invalid file format. Please upload JPG, PNG, or PDF.";
+            } elseif ($_FILES['id_document']['size'] > 5 * 1024 * 1024) {
+                $message = "Uploaded document exceeds the 5MB limit.";
             } else {
-                $filename = uniqid("id_", true) . "." . $ext;
-                $target_file = $upload_dir . $filename;
-                if (move_uploaded_file($_FILES['id_document']['tmp_name'], $target_file)) {
-                    $id_doc_url = $target_file;
+                $upload_dir = 'uploads/ids/';
+                if (!is_dir($upload_dir)) {
+                    mkdir($upload_dir, 0777, true);
+                }
+                $prefix = ($user_code === 1) ? 'cor_' : 'id_';
+                $filename = $prefix . uniqid() . '.' . $ext;
+                $target_path = $upload_dir . $filename;
+
+                if (move_uploaded_file($_FILES['id_document']['tmp_name'], $target_path)) {
+                    $id_doc_url = $target_path;
+                    $id_type = ($user_code === 1)
+                        ? 'PUP Certificate of Registration (COR)'
+                        : trim($_POST['id_type']);
                 } else {
-                    $message = "Failed to upload ID file.";
+                    $message = "Failed to save uploaded document.";
                 }
             }
         }
     }
 
     if (empty($message)) {
-        // Hash password securely
         $password_hash = password_hash($password, PASSWORD_DEFAULT);
 
         $stmt = $conn->prepare("
@@ -78,22 +88,24 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     <meta charset="UTF-8">
     <title>Hive - Sign Up</title>
     <style>
-        body { font-family: Arial, sans-serif; max-width: 450px; margin: 40px auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px; }
-        label { display: block; margin-top: 12px; font-weight: bold; }
-        input, select { width: 100%; padding: 8px; margin-top: 4px; box-sizing: border-box; }
-        button { margin-top: 20px; width: 100%; padding: 10px; background: #f59e0b; border: none; color: #fff; font-weight: bold; cursor: pointer; }
-        .error { color: red; margin-bottom: 10px; }
-        #keeperFields { display: none; background: #fffbeb; padding: 10px; margin-top: 12px; border: 1px solid #fde68a; border-radius: 4px; }
+        body { font-family: Arial, sans-serif; max-width: 460px; margin: 40px auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px; }
+        label { display: block; margin-top: 12px; font-weight: bold; font-size: 14px; }
+        input, select { width: 100%; padding: 8px; margin-top: 4px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+        button { margin-top: 20px; width: 100%; padding: 11px; background: #f59e0b; border: none; color: #fff; font-weight: bold; font-size: 15px; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #d97706; }
+        .error { background: #fee2e2; color: #991b1b; padding: 10px; border-radius: 4px; margin-bottom: 12px; font-size: 14px; }
+        .verification-box { background: #fffbeb; padding: 12px; margin-top: 14px; border: 1px solid #fde68a; border-radius: 6px; }
+        .hint { font-size: 12px; color: #6b7280; margin-top: 5px; line-height: 1.4; }
     </style>
 </head>
 <body>
     <h2>Create a Hive Account</h2>
-    <?php if ($message): ?><p class="error"><?= htmlspecialchars($message) ?></p><?php endif; ?>
+    <?php if ($message): ?><div class="error"><?= htmlspecialchars($message) ?></div><?php endif; ?>
 
     <form method="POST" enctype="multipart/form-data">
         <label>Account Type</label>
-        <select name="user_code" id="userCodeSelect" required onchange="toggleKeeperFields()">
-            <option value="1">Seeker (Looking for a dorm/roommate)</option>
+        <select name="user_code" id="userCodeSelect" required onchange="toggleVerificationFields()">
+            <option value="1">Seeker (Looking for a dorm / roommate)</option>
             <option value="2">Keeper (Lessor / Sharer posting a room)</option>
         </select>
 
@@ -122,30 +134,56 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         <label>Password</label>
         <input type="password" name="password" required>
 
-        <!-- Shown only when Keeper (2) is selected -->
-        <div id="keeperFields">
-            <label>Valid ID Type (Required for Keepers)</label>
-            <select name="id_type">
-                <option value="">-- Select ID Type --</option>
-                <option value="PUP Student ID">PUP Student ID</option>
-                <option value="National ID">Philippine National ID</option>
-                <option value="Driver License">Driver's License</option>
-                <option value="Passport">Passport</option>
-            </select>
+        <!-- Dynamic Verification Section (Seeker COR vs. Keeper ID) -->
+        <div class="verification-box">
+            <div id="keeperIdTypeGroup" style="display: none;">
+                <label style="margin-top: 0;">Valid ID Type (Required for Keepers)</label>
+                <select name="id_type" id="idTypeSelect">
+                    <option value="">-- Select ID Type --</option>
+                    <option value="PUP Student ID">PUP Student ID</option>
+                    <option value="National ID">Philippine National ID</option>
+                    <option value="Driver License">Driver's License</option>
+                    <option value="Passport">Passport</option>
+                </select>
+            </div>
 
-            <label>Upload ID Image / Document</label>
-            <input type="file" name="id_document" accept=".jpg,.jpeg,.png,.pdf">
+            <label id="docUploadLabel" style="margin-top: 0;">Upload PUP Certificate of Registration (COR) *</label>
+            <input type="file" name="id_document" accept=".jpg,.jpeg,.png,.pdf" required>
+            <div class="hint" id="docUploadHint">
+                Accepted: JPG, PNG, or PDF (max 5MB). You can browse listings immediately after signing up, while messaging, reviewing, and reporting unlock once Admin verifies your COR.
+            </div>
         </div>
 
         <button type="submit">Sign Up</button>
     </form>
-    <p>Already have an account? <a href="login.php">Log in here</a></p>
+    <p style="font-size: 14px; margin-top: 14px;">Already have an account? <a href="login.php">Log in here</a></p>
 
     <script>
-        function toggleKeeperFields() {
+        function toggleVerificationFields() {
             const role = document.getElementById('userCodeSelect').value;
-            document.getElementById('keeperFields').style.display = (role === '2') ? 'block' : 'none';
+            const keeperGroup = document.getElementById('keeperIdTypeGroup');
+            const idTypeSelect = document.getElementById('idTypeSelect');
+            const docLabel = document.getElementById('docUploadLabel');
+            const docHint = document.getElementById('docUploadHint');
+
+            if (role === '2') {
+                keeperGroup.style.display = 'block';
+                idTypeSelect.required = true;
+                docLabel.style.marginTop = '12px';
+                docLabel.textContent = 'Upload Valid ID Image / Document *';
+                docHint.textContent = 'Accepted: JPG, PNG, or PDF (max 5MB). Your account must be verified by an Admin before you can publish room listings.';
+            } else {
+                keeperGroup.style.display = 'none';
+                idTypeSelect.required = false;
+                idTypeSelect.value = '';
+                docLabel.style.marginTop = '0';
+                docLabel.textContent = 'Upload PUP Certificate of Registration (COR) *';
+                docHint.textContent = 'Accepted: JPG, PNG, or PDF (max 5MB). You can browse listings immediately after signing up, while messaging, reviewing, and reporting unlock once Admin verifies your COR.';
+            }
         }
+
+        // Initialize state on page load
+        toggleVerificationFields();
     </script>
 </body>
 </html>

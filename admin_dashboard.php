@@ -15,29 +15,36 @@ $error = "";
 if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['action'])) {
     $action = $_POST['action'];
 
-    // A. Approve Keeper ID
+    // A. Approve Seeker COR or Keeper ID
     if ($action === 'approve_id' && isset($_POST['target_user_id'])) {
         $target_id = (int) $_POST['target_user_id'];
-        $stmt = $conn->prepare("UPDATE user SET is_id_verified = 1 WHERE user_id = ? AND user_code = 2");
+        $stmt = $conn->prepare("UPDATE user SET is_id_verified = 1, account_status = 'Active' WHERE user_id = ? AND user_code IN (1, 2)");
         $stmt->bind_param("i", $target_id);
         if ($stmt->execute()) {
-            $message = "Keeper ID approved successfully.";
+            $message = "User verification document approved successfully.";
         }
         $stmt->close();
     }
 
-    // B. Reject Keeper ID (Suspends account so they must re-submit)
+    // B. Reject Seeker COR or Keeper ID
     elseif ($action === 'reject_id' && isset($_POST['target_user_id'])) {
         $target_id = (int) $_POST['target_user_id'];
-        $stmt = $conn->prepare("UPDATE user SET is_id_verified = 0, account_status = 'Suspended' WHERE user_id = ? AND user_code = 2");
+        // Seekers remain Active in read-only mode and must re-upload; Keepers are suspended
+        $stmt = $conn->prepare("
+            UPDATE user 
+            SET is_id_verified = 0,
+                id_document_url = NULL,
+                account_status = CASE WHEN user_code = 2 THEN 'Suspended' ELSE 'Active' END
+            WHERE user_id = ? AND user_code IN (1, 2)
+        ");
         $stmt->bind_param("i", $target_id);
         if ($stmt->execute()) {
-            $message = "Keeper ID rejected and account suspended.";
+            $message = "Verification document rejected. User must re-submit a valid document.";
         }
         $stmt->close();
     }
 
-// C. Resolve Listing Fraud Report
+    // C. Resolve Listing Fraud Report
     elseif ($action === 'resolve_report' && isset($_POST['report_id'], $_POST['resolution'])) {
         $report_id        = (int) $_POST['report_id'];
         $resolution       = $_POST['resolution']; // 'Confirmed Fraud' or 'Dismissed'
@@ -49,7 +56,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['action'])) {
         if (in_array($resolution, ['Confirmed Fraud', 'Dismissed'])) {
             $conn->begin_transaction();
             try {
-                // Record status, which admin reviewed it, timestamp, and notes
                 $stmt = $conn->prepare("
                     UPDATE report 
                     SET status = ?, reviewed_by = ?, reviewed_at = NOW(), resolution_notes = ? 
@@ -99,7 +105,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['action'])) {
             $stmt->close();
         }
     }
-// E. Moderate Tenant Review Proof
+
+    // E. Moderate Tenant Review Proof
     elseif ($action === 'moderate_review' && isset($_POST['review_id'], $_POST['decision'])) {
         $review_id = (int) $_POST['review_id'];
         $decision  = $_POST['decision']; // 'Verified' or 'Unverified'
@@ -120,17 +127,20 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['action'])) {
 $stats = $conn->query("
     SELECT
         (SELECT COUNT(*) FROM user WHERE user_code != 3 AND account_status = 'Active') AS active_users,
-        (SELECT COUNT(*) FROM user WHERE user_code = 2 AND is_id_verified = 0 AND account_status = 'Active') AS pending_ids,
+        (SELECT COUNT(*) FROM user WHERE user_code IN (1, 2) AND is_id_verified = 0 AND id_document_url IS NOT NULL AND id_document_url != '') AS pending_ids,
         (SELECT COUNT(*) FROM listing WHERE status = 'Available') AS active_listings,
         (SELECT COUNT(*) FROM report WHERE status = 'Pending') AS pending_reports
 ")->fetch_assoc();
 
-// 3. FETCH PENDING KEEPER ID VERIFICATIONS
-$pending_keepers = $conn->query("
-    SELECT user_id, username, email, first_name, last_name, contact_no, id_type, id_document_url, account_status
+// 3. FETCH PENDING SEEKER COR & KEEPER ID VERIFICATIONS
+$pending_verifications = $conn->query("
+    SELECT user_id, user_code, username, email, first_name, last_name, id_type, id_document_url, account_status, created_at
     FROM user
-    WHERE user_code = 2 AND is_id_verified = 0
-    ORDER BY user_id DESC
+    WHERE is_id_verified = 0
+      AND id_document_url IS NOT NULL
+      AND id_document_url != ''
+      AND user_code IN (1, 2)
+    ORDER BY created_at ASC
 ")->fetch_all(MYSQLI_ASSOC);
 
 // 4. FETCH FRAUD REPORTS
@@ -204,6 +214,7 @@ $pending_reviews = $conn->query("
         .bg-green { background: #d1fae5; color: #065f46; }
         .bg-yellow { background: #fef3c7; color: #92400e; }
         .bg-red { background: #fee2e2; color: #991b1b; }
+        .bg-blue { background: #dbeafe; color: #1e40af; }
         .btn { padding: 6px 10px; border: none; border-radius: 4px; color: #fff; font-size: 12px; font-weight: bold; cursor: pointer; }
         .btn-approve { background: #10b981; }
         .btn-reject, .btn-ban { background: #ef4444; }
@@ -233,7 +244,7 @@ $pending_reviews = $conn->query("
         <div class="num"><?= (int)$stats['active_users'] ?></div>
     </div>
     <div class="stat-card">
-        <h4>Pending Keeper IDs</h4>
+        <h4>Pending Verifications</h4>
         <div class="num" style="color:#d97706;"><?= (int)$stats['pending_ids'] ?></div>
     </div>
     <div class="stat-card">
@@ -246,49 +257,54 @@ $pending_reviews = $conn->query("
     </div>
 </div>
 
-<!-- 1. KEEPER ID VERIFICATION QUEUE -->
+<!-- 1. SEEKER COR & KEEPER ID VERIFICATION QUEUE -->
 <div class="section">
-    <h3>Keeper ID Verification Queue</h3>
-    <?php if (empty($pending_keepers)): ?>
-        <p style="color:#6b7280;">No Keepers currently awaiting ID verification.</p>
+    <h3>User Verification Queue (Seeker PUP COR & Keeper Valid ID)</h3>
+    <?php if (empty($pending_verifications)): ?>
+        <p style="color:#6b7280;">No Seekers or Keepers currently awaiting document verification.</p>
     <?php else: ?>
         <table>
             <thead>
                 <tr>
                     <th>ID</th>
-                    <th>Keeper Name</th>
+                    <th>Role</th>
+                    <th>Full Name</th>
                     <th>Username / Email</th>
-                    <th>ID Type</th>
-                    <th>Uploaded Document</th>
+                    <th>Document Type</th>
+                    <th>Uploaded File</th>
                     <th>Status</th>
                     <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
-                <?php foreach ($pending_keepers as $k): ?>
+                <?php foreach ($pending_verifications as $u): ?>
+                    <?php $is_seeker = ((int)$u['user_code'] === 1); ?>
                     <tr>
-                        <td>#<?= $k['user_id'] ?></td>
-                        <td><?= htmlspecialchars($k['first_name'] . ' ' . $k['last_name']) ?></td>
-                        <td><?= htmlspecialchars($k['username']) ?><br><small><?= htmlspecialchars($k['email']) ?></small></td>
-                        <td><?= htmlspecialchars($k['id_type'] ?? 'N/A') ?></td>
+                        <td>#<?= $u['user_id'] ?></td>
                         <td>
-                            <?php if (!empty($k['id_document_url'])): ?>
-                                <a href="<?= htmlspecialchars($k['id_document_url']) ?>" target="_blank">View ID File</a>
-                            <?php else: ?>
-                                <span style="color:#9ca3af;">No file uploaded</span>
-                            <?php endif; ?>
+                            <span class="badge <?= $is_seeker ? 'bg-blue' : 'bg-yellow' ?>">
+                                <?= $is_seeker ? 'Seeker' : 'Keeper' ?>
+                            </span>
                         </td>
-                        <td><span class="badge bg-yellow"><?= htmlspecialchars($k['account_status']) ?></span></td>
+                        <td><?= htmlspecialchars($u['first_name'] . ' ' . $u['last_name']) ?></td>
+                        <td><?= htmlspecialchars($u['username']) ?><br><small><?= htmlspecialchars($u['email']) ?></small></td>
+                        <td><?= htmlspecialchars($u['id_type'] ?? 'N/A') ?></td>
+                        <td>
+                            <a href="<?= htmlspecialchars($u['id_document_url']) ?>" target="_blank">
+                                <?= $is_seeker ? 'View PUP COR' : 'View ID File' ?>
+                            </a>
+                        </td>
+                        <td><span class="badge bg-yellow"><?= htmlspecialchars($u['account_status']) ?></span></td>
                         <td>
                             <form method="POST" style="display:inline;">
                                 <input type="hidden" name="action" value="approve_id">
-                                <input type="hidden" name="target_user_id" value="<?= $k['user_id'] ?>">
-                                <button type="submit" class="btn btn-approve">Approve ID</button>
+                                <input type="hidden" name="target_user_id" value="<?= $u['user_id'] ?>">
+                                <button type="submit" class="btn btn-approve">Approve</button>
                             </form>
                             <form method="POST" style="display:inline;">
                                 <input type="hidden" name="action" value="reject_id">
-                                <input type="hidden" name="target_user_id" value="<?= $k['user_id'] ?>">
-                                <button type="submit" class="btn btn-reject">Reject & Suspend</button>
+                                <input type="hidden" name="target_user_id" value="<?= $u['user_id'] ?>">
+                                <button type="submit" class="btn btn-reject">Reject</button>
                             </form>
                         </td>
                     </tr>
@@ -298,6 +314,7 @@ $pending_reviews = $conn->query("
     <?php endif; ?>
 </div>
 
+<!-- TENANT REVIEW PROOF QUEUE -->
 <div class="section">
     <h3>Tenant Review Proof Verification Queue</h3>
     <?php if (empty($pending_reviews)): ?>
@@ -432,7 +449,7 @@ $pending_reviews = $conn->query("
                 <th>Name</th>
                 <th>Username</th>
                 <th>Role</th>
-                <th>ID Verified</th>
+                <th>Verified</th>
                 <th>Account Status</th>
                 <th>Change Status</th>
             </tr>
@@ -444,7 +461,11 @@ $pending_reviews = $conn->query("
                     <td><?= htmlspecialchars($u['first_name'] . ' ' . $u['last_name']) ?></td>
                     <td><?= htmlspecialchars($u['username']) ?></td>
                     <td><?= htmlspecialchars($u['user_type']) ?></td>
-                    <td><?= ($u['user_type'] === 'Keeper') ? ($u['is_id_verified'] ? 'Yes' : 'Pending') : 'N/A' ?></td>
+                    <td>
+                        <span class="badge <?= $u['is_id_verified'] ? 'bg-green' : 'bg-yellow' ?>">
+                            <?= $u['is_id_verified'] ? 'Verified' : 'Pending' ?>
+                        </span>
+                    </td>
                     <td>
                         <?php
                             $uBadge = ($u['account_status'] === 'Active') ? 'bg-green' : (($u['account_status'] === 'Suspended') ? 'bg-yellow' : 'bg-red');
