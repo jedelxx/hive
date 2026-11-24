@@ -1,84 +1,91 @@
 <?php
 session_start();
 require_once 'db_connect.php';
+require_once 'turnstile_verify.php';
 
 $message = "";
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
-    $user_code  = (int) $_POST['user_code']; // 1 = Seeker, 2 = Keeper
-    $username   = trim($_POST['username']);
-    $email      = trim($_POST['email']);
-    $password   = $_POST['password'];
-    $first_name = trim($_POST['first_name']);
-    $last_name  = trim($_POST['last_name']);
-    $contact_no = trim($_POST['contact_no']);
-    $sex        = $_POST['sex'];
-    $id_type    = null;
-    $id_doc_url = null;
 
-    // Validate document upload for both Seekers (PUP COR) and Keepers (Valid ID)
-    if (in_array($user_code, [1, 2], true)) {
-        if ($user_code === 2 && empty(trim($_POST['id_type'] ?? ''))) {
-            $message = "Please select a valid ID type.";
-        } elseif (!isset($_FILES['id_document']) || $_FILES['id_document']['error'] !== UPLOAD_ERR_OK) {
-            $message = ($user_code === 1)
-                ? "Please upload your PUP Certificate of Registration (COR) to verify your student status."
-                : "Please upload a valid ID document.";
-        } else {
-            $allowed_ext = ['jpg', 'jpeg', 'png', 'pdf'];
-            $ext = strtolower(pathinfo($_FILES['id_document']['name'], PATHINFO_EXTENSION));
+    $cf_token = $_POST['cf-turnstile-response'] ?? '';
+    if (!verify_turnstile($cf_token)) {
+        $message = "Security verification failed. Please complete the Cloudflare check and try again.";
+    } else {
+        $user_code  = (int) $_POST['user_code']; // 1 = Seeker, 2 = Keeper
+        $username   = trim($_POST['username']);
+        $email      = trim($_POST['email']);
+        $password   = $_POST['password'];
+        $first_name = trim($_POST['first_name']);
+        $last_name  = trim($_POST['last_name']);
+        $contact_no = trim($_POST['contact_no']);
+        $sex        = $_POST['sex'];
+        $id_type    = null;
+        $id_doc_url = null;
 
-            if (!in_array($ext, $allowed_ext, true)) {
-                $message = "Invalid file format. Please upload JPG, PNG, or PDF.";
-            } elseif ($_FILES['id_document']['size'] > 5 * 1024 * 1024) {
-                $message = "Uploaded document exceeds the 5MB limit.";
+        // Validate document upload for both Seekers (PUP COR) and Keepers (Valid ID)
+        if (in_array($user_code, [1, 2], true)) {
+            if ($user_code === 2 && empty(trim($_POST['id_type'] ?? ''))) {
+                $message = "Please select a valid ID type.";
+            } elseif (!isset($_FILES['id_document']) || $_FILES['id_document']['error'] !== UPLOAD_ERR_OK) {
+                $message = ($user_code === 1)
+                    ? "Please upload your PUP Certificate of Registration to verify your student status."
+                    : "Please upload a valid ID document.";
             } else {
-                $upload_dir = 'uploads/ids/';
-                if (!is_dir($upload_dir)) {
-                    mkdir($upload_dir, 0777, true);
-                }
-                $prefix = ($user_code === 1) ? 'cor_' : 'id_';
-                $filename = $prefix . uniqid() . '.' . $ext;
-                $target_path = $upload_dir . $filename;
+                $allowed_ext = ['jpg', 'jpeg', 'png', 'pdf'];
+                $ext = strtolower(pathinfo($_FILES['id_document']['name'], PATHINFO_EXTENSION));
 
-                if (move_uploaded_file($_FILES['id_document']['tmp_name'], $target_path)) {
-                    $id_doc_url = $target_path;
-                    $id_type = ($user_code === 1)
-                        ? 'PUP Certificate of Registration (COR)'
-                        : trim($_POST['id_type']);
+                if (!in_array($ext, $allowed_ext, true)) {
+                    $message = "Invalid file format. Please upload JPG, PNG, or PDF.";
+                } elseif ($_FILES['id_document']['size'] > 5 * 1024 * 1024) {
+                    $message = "Uploaded document exceeds the 5MB limit.";
                 } else {
-                    $message = "Failed to save uploaded document.";
+                    $upload_dir = 'uploads/ids/';
+                    if (!is_dir($upload_dir)) {
+                        mkdir($upload_dir, 0777, true);
+                    }
+                    $prefix = ($user_code === 1) ? 'cor_' : 'id_';
+                    $filename = $prefix . uniqid() . '.' . $ext;
+                    $target_path = $upload_dir . $filename;
+
+                    if (move_uploaded_file($_FILES['id_document']['tmp_name'], $target_path)) {
+                        $id_doc_url = $target_path;
+                        $id_type = ($user_code === 1)
+                            ? 'PUP Certificate of Registration (COR)'
+                            : trim($_POST['id_type']);
+                    } else {
+                        $message = "Failed to save uploaded document.";
+                    }
                 }
             }
         }
-    }
 
-    if (empty($message)) {
-        $password_hash = password_hash($password, PASSWORD_DEFAULT);
+        if (empty($message)) {
+            $password_hash = password_hash($password, PASSWORD_DEFAULT);
 
-        $stmt = $conn->prepare("
-            INSERT INTO user (user_code, username, email, password_hash, first_name, last_name, contact_no, sex, id_type, id_document_url, is_id_verified, account_status)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 'Active')
-        ");
-        $stmt->bind_param(
-            "isssssssss",
-            $user_code, $username, $email, $password_hash,
-            $first_name, $last_name, $contact_no, $sex, $id_type, $id_doc_url
-        );
+            $stmt = $conn->prepare("
+                INSERT INTO user (user_code, username, email, password_hash, first_name, last_name, contact_no, sex, id_type, id_document_url, is_id_verified, account_status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 'Active')
+            ");
+            $stmt->bind_param(
+                "isssssssss",
+                $user_code, $username, $email, $password_hash,
+                $first_name, $last_name, $contact_no, $sex, $id_type, $id_doc_url
+            );
 
-        try {
-            if ($stmt->execute()) {
-                header("Location: login.php?registered=1");
-                exit();
+            try {
+                if ($stmt->execute()) {
+                    header("Location: login.php?registered=1");
+                    exit();
+                }
+            } catch (mysqli_sql_exception $e) {
+                if ($e->getCode() === 1062) {
+                    $message = "Username or email is already taken.";
+                } else {
+                    $message = "Database error: " . $e->getMessage();
+                }
             }
-        } catch (mysqli_sql_exception $e) {
-            if ($e->getCode() === 1062) {
-                $message = "Username or email is already taken.";
-            } else {
-                $message = "Database error: " . $e->getMessage();
-            }
+            $stmt->close();
         }
-        $stmt->close();
     }
 }
 ?>
@@ -87,6 +94,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 <head>
     <meta charset="UTF-8">
     <title>Hive - Sign Up</title>
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
     <style>
         body { font-family: Arial, sans-serif; max-width: 460px; margin: 40px auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px; }
         label { display: block; margin-top: 12px; font-weight: bold; font-size: 14px; }
@@ -153,7 +161,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 Accepted: JPG, PNG, or PDF (max 5MB). You can browse listings immediately after signing up, while messaging, reviewing, and reporting unlock once Admin verifies your COR.
             </div>
         </div>
-
+        <div class="cf-turnstile" data-sitekey="<?= htmlspecialchars(CF_TURNSTILE_SITE_KEY) ?>" style="margin-top: 14px;"></div>
         <button type="submit">Sign Up</button>
     </form>
     <p style="font-size: 14px; margin-top: 14px;">Already have an account? <a href="login.php">Log in here</a></p>
@@ -177,8 +185,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 idTypeSelect.required = false;
                 idTypeSelect.value = '';
                 docLabel.style.marginTop = '0';
-                docLabel.textContent = 'Upload PUP Certificate of Registration (COR) *';
-                docHint.textContent = 'Accepted: JPG, PNG, or PDF (max 5MB). You can browse listings immediately after signing up, while messaging, reviewing, and reporting unlock once Admin verifies your COR.';
+                docLabel.textContent = 'Upload PUP Certificate of Registration *';
+                docHint.textContent = 'Accepted: JPG, PNG, or PDF (max 5MB). You can browse listings immediately after signing up, while messaging, reviewing, and reporting unlock once an administrator verifies your COR.';
             }
         }
 

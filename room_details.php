@@ -265,7 +265,7 @@ if (!empty($reviews)) {
 
     <?php if (!$is_verified_user && $user_code !== 3): ?>
         <div class="alert-warn">
-            <strong>Verification Pending:</strong> Your <?= $user_code === 1 ? 'PUP Certificate of Registration' : 'Keeper ID' ?> is awaiting Admin approval. You can browse all rooms freely, while <strong>messaging Keepers, submitting reviews, and reporting listings</strong> will unlock once verified.
+            <strong>Verification Pending:</strong> Your <?= $user_code === 1 ? 'PUP Certificate of Registration' : 'Keeper ID' ?> is awaiting administrator approval. You can browse all rooms freely, while <strong>messaging Keepers, submitting reviews, and reporting listings</strong> will unlock once verified.
         </div>
     <?php endif; ?>
 
@@ -466,7 +466,7 @@ if (!empty($reviews)) {
                 <div class="box">
                     <h4 style="margin-top:0; color:#991b1b;">Report this Listing</h4>
                     <?php if ($is_verified_user): ?>
-                        <p style="font-size:12px; color:#6b7280;">Suspect a scam, fake photos, or misleading rent terms? Let our Admin team know.</p>
+                        <p style="font-size:12px; color:#6b7280;">Suspect a scam, fake photos, or misleading rent terms? Let our team know.</p>
                         <form method="POST">
                             <input type="hidden" name="action" value="submit_report">
                             <label style="font-size:13px;">Reason</label>
