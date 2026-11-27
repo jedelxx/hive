@@ -1,128 +1,187 @@
--- phpMyAdmin SQL Dump
--- version 5.2.3
--- https://www.phpmyadmin.net/
+/*M!999999\- enable the sandbox mode */ 
+-- MariaDB dump 10.19  Distrib 10.11.16-MariaDB, for Win64 (AMD64)
 --
--- Host: 127.0.0.1
--- Generation Time: Nov 19, 2026 at 11:43 AM
--- Server version: 10.11.16-MariaDB
--- PHP Version: 8.5.12
-
-SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
-START TRANSACTION;
-SET time_zone = "+00:00";
-
+-- Host: localhost    Database: hive_pup_db
+-- ------------------------------------------------------
+-- Server version	10.11.16-MariaDB
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
 /*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
 /*!40101 SET NAMES utf8mb4 */;
+/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
+/*!40103 SET TIME_ZONE='+00:00' */;
+/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
+/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
+/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
+/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
 --
--- Database: `hive_pup_db`
+-- Current Database: `hive_pup_db`
 --
 
--- --------------------------------------------------------
+CREATE DATABASE /*!32312 IF NOT EXISTS*/ `hive_pup_db` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci */;
+
+USE `hive_pup_db`;
 
 --
 -- Table structure for table `chat_message`
 --
 
+DROP TABLE IF EXISTS `chat_message`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `chat_message` (
-  `message_id` int(11) NOT NULL,
+  `message_id` int(11) NOT NULL AUTO_INCREMENT,
   `thread_id` int(11) NOT NULL,
   `sender_id` int(11) NOT NULL,
   `message_text` text NOT NULL,
   `sent_at` timestamp NULL DEFAULT current_timestamp(),
-  `is_read` tinyint(1) DEFAULT 0
+  `is_read` tinyint(1) DEFAULT 0,
+  PRIMARY KEY (`message_id`),
+  KEY `thread_id` (`thread_id`),
+  KEY `sender_id` (`sender_id`),
+  CONSTRAINT `chat_message_ibfk_1` FOREIGN KEY (`thread_id`) REFERENCES `chat_thread` (`thread_id`) ON DELETE CASCADE,
+  CONSTRAINT `chat_message_ibfk_2` FOREIGN KEY (`sender_id`) REFERENCES `user` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 
--- --------------------------------------------------------
+--
+-- Dumping data for table `chat_message`
+--
+
+LOCK TABLES `chat_message` WRITE;
+/*!40000 ALTER TABLE `chat_message` DISABLE KEYS */;
+/*!40000 ALTER TABLE `chat_message` ENABLE KEYS */;
+UNLOCK TABLES;
 
 --
 -- Table structure for table `chat_thread`
 --
 
+DROP TABLE IF EXISTS `chat_thread`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `chat_thread` (
-  `thread_id` int(11) NOT NULL,
+  `thread_id` int(11) NOT NULL AUTO_INCREMENT,
   `listing_id` int(11) DEFAULT NULL,
   `seeker_id` int(11) NOT NULL,
   `keeper_id` int(11) NOT NULL,
-  `created_at` timestamp NULL DEFAULT current_timestamp()
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `created_at` timestamp NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`thread_id`),
+  UNIQUE KEY `uq_thread` (`listing_id`,`seeker_id`,`keeper_id`),
+  KEY `seeker_id` (`seeker_id`),
+  KEY `keeper_id` (`keeper_id`),
+  CONSTRAINT `chat_thread_ibfk_1` FOREIGN KEY (`listing_id`) REFERENCES `listing` (`listing_id`) ON DELETE CASCADE,
+  CONSTRAINT `chat_thread_ibfk_2` FOREIGN KEY (`seeker_id`) REFERENCES `user` (`user_id`),
+  CONSTRAINT `chat_thread_ibfk_3` FOREIGN KEY (`keeper_id`) REFERENCES `user` (`user_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 
--- --------------------------------------------------------
+--
+-- Dumping data for table `chat_thread`
+--
+
+LOCK TABLES `chat_thread` WRITE;
+/*!40000 ALTER TABLE `chat_thread` DISABLE KEYS */;
+/*!40000 ALTER TABLE `chat_thread` ENABLE KEYS */;
+UNLOCK TABLES;
 
 --
 -- Table structure for table `house_rule`
 --
 
+DROP TABLE IF EXISTS `house_rule`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `house_rule` (
-  `rule_id` int(11) NOT NULL,
-  `rule_name` varchar(100) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `rule_id` int(11) NOT NULL AUTO_INCREMENT,
+  `rule_name` varchar(100) NOT NULL,
+  PRIMARY KEY (`rule_id`),
+  UNIQUE KEY `rule_name` (`rule_name`)
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Dumping data for table `house_rule`
 --
 
-INSERT INTO `house_rule` (`rule_id`, `rule_name`) VALUES
-(5, 'Allowed cooking'),
-(3, 'Allowed visitors'),
-(1, 'No pets'),
-(4, 'Not allowed cooking'),
-(2, 'Not allowed visitors');
-
--- --------------------------------------------------------
+LOCK TABLES `house_rule` WRITE;
+/*!40000 ALTER TABLE `house_rule` DISABLE KEYS */;
+INSERT INTO `house_rule` VALUES
+(5,'Cooking allowed'),
+(1,'Pets allowed'),
+(3,'Visitors allowed');
+/*!40000 ALTER TABLE `house_rule` ENABLE KEYS */;
+UNLOCK TABLES;
 
 --
 -- Table structure for table `housing_type`
 --
 
+DROP TABLE IF EXISTS `housing_type`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `housing_type` (
-  `type_id` int(11) NOT NULL,
-  `housing_name` varchar(50) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `type_id` int(11) NOT NULL AUTO_INCREMENT,
+  `housing_name` varchar(50) NOT NULL,
+  PRIMARY KEY (`type_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Dumping data for table `housing_type`
 --
 
-INSERT INTO `housing_type` (`type_id`, `housing_name`) VALUES
-(1, 'Apartment'),
-(2, 'Condominium');
-
--- --------------------------------------------------------
+LOCK TABLES `housing_type` WRITE;
+/*!40000 ALTER TABLE `housing_type` DISABLE KEYS */;
+INSERT INTO `housing_type` VALUES
+(1,'Apartment'),
+(2,'Condominium');
+/*!40000 ALTER TABLE `housing_type` ENABLE KEYS */;
+UNLOCK TABLES;
 
 --
 -- Table structure for table `inclusion`
 --
 
+DROP TABLE IF EXISTS `inclusion`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `inclusion` (
-  `inclusion_id` int(11) NOT NULL,
-  `inclusion_name` varchar(100) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `inclusion_id` int(11) NOT NULL AUTO_INCREMENT,
+  `inclusion_name` varchar(100) NOT NULL,
+  PRIMARY KEY (`inclusion_id`),
+  UNIQUE KEY `amenity_name` (`inclusion_name`)
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Dumping data for table `inclusion`
 --
 
-INSERT INTO `inclusion` (`inclusion_id`, `inclusion_name`) VALUES
-(4, 'Aircon'),
-(1, 'Bed'),
-(3, 'Electric Fan'),
-(6, 'Induction Cooker'),
-(2, 'Refrigerator'),
-(7, 'Study Table'),
-(5, 'Water Heater');
-
--- --------------------------------------------------------
+LOCK TABLES `inclusion` WRITE;
+/*!40000 ALTER TABLE `inclusion` DISABLE KEYS */;
+INSERT INTO `inclusion` VALUES
+(4,'Aircon'),
+(1,'Bed'),
+(3,'Electric Fan'),
+(6,'Induction Cooker'),
+(2,'Refrigerator'),
+(7,'Study Table'),
+(5,'Water Heater');
+/*!40000 ALTER TABLE `inclusion` ENABLE KEYS */;
+UNLOCK TABLES;
 
 --
 -- Table structure for table `listing`
 --
 
+DROP TABLE IF EXISTS `listing`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `listing` (
-  `listing_id` int(11) NOT NULL,
+  `listing_id` int(11) NOT NULL AUTO_INCREMENT,
   `property_id` int(11) NOT NULL,
   `keeper_id` int(11) NOT NULL,
   `title` varchar(150) NOT NULL,
@@ -141,99 +200,161 @@ CREATE TABLE `listing` (
   `updated_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
   `no_tenant` int(11) DEFAULT NULL,
   `is_long_term` tinyint(1) DEFAULT NULL,
-  `furnish` enum('Unfurnished','Semi-furnished','Furnished') DEFAULT NULL
-) ;
+  `furnish` enum('Unfurnished','Semi-furnished','Furnished') DEFAULT NULL,
+  PRIMARY KEY (`listing_id`),
+  KEY `property_id` (`property_id`),
+  KEY `keeper_id` (`keeper_id`),
+  KEY `idx_listing_search` (`status`,`monthly_rent`,`property_id`),
+  CONSTRAINT `listing_ibfk_1` FOREIGN KEY (`property_id`) REFERENCES `property` (`property_id`),
+  CONSTRAINT `listing_ibfk_2` FOREIGN KEY (`keeper_id`) REFERENCES `user` (`user_id`),
+  CONSTRAINT `no_tenant` CHECK (`no_tenant` between 0 and 20)
+) ENGINE=InnoDB AUTO_INCREMENT=1009 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Dumping data for table `listing`
 --
 
-INSERT INTO `listing` (`listing_id`, `property_id`, `keeper_id`, `title`, `purpose`, `description`, `monthly_rent`, `assoc_dues`, `advance_months`, `deposit_months`, `water_included`, `electricity_included`, `wifi_included`, `status`, `is_featured`, `created_at`, `updated_at`, `no_tenant`, `is_long_term`, `furnish`) VALUES
-(1001, 1, 3, '2BR Unit 6pax', 'Lessor', 'Bare unit', 15000.00, 1500.00, 2, 1, 0, 0, 0, 'Available', 0, NULL, '2026-11-18 17:42:08', 2, NULL, NULL),
-(1002, 1, 1, '2BR Unit 6pax', 'Sharer', 'Bare unit', 10000.00, 1200.00, 2, 1, 0, 0, 0, 'Occupied', 0, NULL, NULL, NULL, NULL, NULL),
-(1003, 3, 4, '3BR Unit 6pax', 'Sharer', 'Bare unit', 10000.00, 1200.00, 2, 1, 0, 0, 0, 'Occupied', 1, NULL, NULL, NULL, NULL, NULL),
-(1004, 2, 2, '1BR Unit', 'Lessor', 'Bare unit', 10000.00, 1200.00, 2, 1, 0, 0, 0, 'Occupied', 1, NULL, NULL, NULL, NULL, NULL),
-(1005, 4, 1, '2BR Unit 2pax', 'Sharer', 'Bare unit', 10000.00, 1200.00, 2, 1, 0, 0, 0, 'Available', 1, NULL, NULL, NULL, NULL, NULL),
-(1006, 5, 3, '2BR Unit', 'Lessor', 'Bare unit', 10000.00, 1200.00, 2, 1, 0, 0, 0, 'Occupied', 0, NULL, NULL, NULL, NULL, NULL),
-(1007, 2, 1, '2BR Unit 6pax', 'Lessor', 'Bare unit', 10000.00, 1200.00, 2, 1, 0, 0, 0, 'Available', 1, NULL, NULL, NULL, NULL, NULL);
-
--- --------------------------------------------------------
+LOCK TABLES `listing` WRITE;
+/*!40000 ALTER TABLE `listing` DISABLE KEYS */;
+INSERT INTO `listing` VALUES
+(1008,6,20,'Sharing Room Near PUP','Lessor','',4000.00,0.00,2,1,0,0,0,'Available',0,'2026-11-24 06:04:27','2026-11-24 06:04:27',1,1,'Semi-furnished');
+/*!40000 ALTER TABLE `listing` ENABLE KEYS */;
+UNLOCK TABLES;
 
 --
 -- Table structure for table `listing_inclusion`
 --
 
+DROP TABLE IF EXISTS `listing_inclusion`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `listing_inclusion` (
   `listing_id` int(11) NOT NULL,
-  `inclusion_id` int(11) NOT NULL
+  `inclusion_id` int(11) NOT NULL,
+  PRIMARY KEY (`listing_id`,`inclusion_id`),
+  KEY `amenity_id` (`inclusion_id`),
+  CONSTRAINT `listing_inclusion_ibfk_1` FOREIGN KEY (`listing_id`) REFERENCES `listing` (`listing_id`) ON DELETE CASCADE,
+  CONSTRAINT `listing_inclusion_ibfk_2` FOREIGN KEY (`inclusion_id`) REFERENCES `inclusion` (`inclusion_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Dumping data for table `listing_inclusion`
 --
 
-INSERT INTO `listing_inclusion` (`listing_id`, `inclusion_id`) VALUES
-(1001, 2),
-(1001, 4),
-(1002, 4);
-
--- --------------------------------------------------------
+LOCK TABLES `listing_inclusion` WRITE;
+/*!40000 ALTER TABLE `listing_inclusion` DISABLE KEYS */;
+INSERT INTO `listing_inclusion` VALUES
+(1008,1),
+(1008,2),
+(1008,5),
+(1008,7);
+/*!40000 ALTER TABLE `listing_inclusion` ENABLE KEYS */;
+UNLOCK TABLES;
 
 --
 -- Table structure for table `listing_photo`
 --
 
+DROP TABLE IF EXISTS `listing_photo`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `listing_photo` (
-  `photo_id` int(11) NOT NULL,
+  `photo_id` int(11) NOT NULL AUTO_INCREMENT,
   `listing_id` int(11) NOT NULL,
   `image_url` varchar(255) NOT NULL,
-  `is_primary` tinyint(1) DEFAULT 0
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `is_primary` tinyint(1) DEFAULT 0,
+  PRIMARY KEY (`photo_id`),
+  KEY `listing_id` (`listing_id`),
+  CONSTRAINT `listing_photo_ibfk_1` FOREIGN KEY (`listing_id`) REFERENCES `listing` (`listing_id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 
--- --------------------------------------------------------
+--
+-- Dumping data for table `listing_photo`
+--
+
+LOCK TABLES `listing_photo` WRITE;
+/*!40000 ALTER TABLE `listing_photo` DISABLE KEYS */;
+INSERT INTO `listing_photo` VALUES
+(1,1008,'uploads/listings/room_1008_0_1795500267.jpeg',1);
+/*!40000 ALTER TABLE `listing_photo` ENABLE KEYS */;
+UNLOCK TABLES;
 
 --
 -- Table structure for table `listing_rule`
 --
 
+DROP TABLE IF EXISTS `listing_rule`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `listing_rule` (
   `listing_id` int(11) NOT NULL,
   `rule_id` int(11) NOT NULL,
-  `rule_value` varchar(100) DEFAULT NULL
+  `rule_value` varchar(100) DEFAULT NULL,
+  PRIMARY KEY (`listing_id`,`rule_id`),
+  KEY `rule_id` (`rule_id`),
+  CONSTRAINT `listing_rule_ibfk_1` FOREIGN KEY (`listing_id`) REFERENCES `listing` (`listing_id`) ON DELETE CASCADE,
+  CONSTRAINT `listing_rule_ibfk_2` FOREIGN KEY (`rule_id`) REFERENCES `house_rule` (`rule_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 
--- --------------------------------------------------------
+--
+-- Dumping data for table `listing_rule`
+--
+
+LOCK TABLES `listing_rule` WRITE;
+/*!40000 ALTER TABLE `listing_rule` DISABLE KEYS */;
+INSERT INTO `listing_rule` VALUES
+(1008,3,'Allowed'),
+(1008,5,'Allowed');
+/*!40000 ALTER TABLE `listing_rule` ENABLE KEYS */;
+UNLOCK TABLES;
 
 --
 -- Table structure for table `property`
 --
 
+DROP TABLE IF EXISTS `property`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `property` (
-  `property_id` int(11) NOT NULL,
+  `property_id` int(11) NOT NULL AUTO_INCREMENT,
   `type_id` int(11) NOT NULL,
   `name` varchar(100) NOT NULL,
-  `address` text NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `address` text NOT NULL,
+  PRIMARY KEY (`property_id`),
+  KEY `type_id` (`type_id`),
+  CONSTRAINT `property_ibfk_1` FOREIGN KEY (`type_id`) REFERENCES `housing_type` (`type_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Dumping data for table `property`
 --
 
-INSERT INTO `property` (`property_id`, `type_id`, `name`, `address`) VALUES
-(1, 2, 'El Pueblo Manila', 'Anonas Street, Sta. Mesa, Manila'),
-(2, 2, 'Maui Oasis', 'Anonas Street, Sta. Mesa, Manila'),
-(3, 2, 'Covent Garden', 'Anonas Street, Sta. Mesa, Manila'),
-(4, 2, 'Silk Residences', 'Anonas Street, Sta. Mesa, Manila'),
-(5, 2, 'Futura Centro', 'Anonas Street, Sta. Mesa, Manila');
-
--- --------------------------------------------------------
+LOCK TABLES `property` WRITE;
+/*!40000 ALTER TABLE `property` DISABLE KEYS */;
+INSERT INTO `property` VALUES
+(1,2,'El Pueblo Manila','Anonas Street, Sta. Mesa, Manila'),
+(2,2,'Maui Oasis','Anonas Street, Sta. Mesa, Manila'),
+(3,2,'Covent Garden','Anonas Street, Sta. Mesa, Manila'),
+(4,2,'Silk Residences','Anonas Street, Sta. Mesa, Manila'),
+(5,2,'Futura Centro','Anonas Street, Sta. Mesa, Manila'),
+(6,2,'Teresa Condominium','123 Teresa Street, Sta. Mesa, Manila');
+/*!40000 ALTER TABLE `property` ENABLE KEYS */;
+UNLOCK TABLES;
 
 --
 -- Table structure for table `report`
 --
 
+DROP TABLE IF EXISTS `report`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `report` (
-  `report_id` int(11) NOT NULL,
+  `report_id` int(11) NOT NULL AUTO_INCREMENT,
   `listing_id` int(11) NOT NULL,
   `reporter_id` int(11) NOT NULL,
   `reason` text NOT NULL,
@@ -241,53 +362,101 @@ CREATE TABLE `report` (
   `reviewed_by` int(11) DEFAULT NULL,
   `reviewed_at` datetime DEFAULT NULL,
   `resolution_notes` text DEFAULT NULL,
-  `created_at` timestamp NULL DEFAULT current_timestamp()
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `created_at` timestamp NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`report_id`),
+  UNIQUE KEY `uq_report` (`listing_id`,`reporter_id`),
+  KEY `reporter_id` (`reporter_id`),
+  KEY `reviewed_by` (`reviewed_by`),
+  CONSTRAINT `report_ibfk_1` FOREIGN KEY (`listing_id`) REFERENCES `listing` (`listing_id`) ON DELETE CASCADE,
+  CONSTRAINT `report_ibfk_2` FOREIGN KEY (`reporter_id`) REFERENCES `user` (`user_id`),
+  CONSTRAINT `report_ibfk_3` FOREIGN KEY (`reviewed_by`) REFERENCES `user` (`user_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 
--- --------------------------------------------------------
+--
+-- Dumping data for table `report`
+--
+
+LOCK TABLES `report` WRITE;
+/*!40000 ALTER TABLE `report` DISABLE KEYS */;
+/*!40000 ALTER TABLE `report` ENABLE KEYS */;
+UNLOCK TABLES;
 
 --
 -- Table structure for table `review`
 --
 
+DROP TABLE IF EXISTS `review`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `review` (
-  `review_id` int(11) NOT NULL,
+  `review_id` int(11) NOT NULL AUTO_INCREMENT,
   `listing_id` int(11) NOT NULL,
   `reviewer_id` int(11) NOT NULL,
   `rating` int(11) NOT NULL,
   `comment` text DEFAULT NULL,
+  `proof_document_url` varchar(255) DEFAULT NULL,
   `is_verified_tenant` tinyint(1) DEFAULT 0,
+  `verification_status` enum('Pending','Verified','Unverified') NOT NULL DEFAULT 'Pending',
   `tenant_status` enum('Current','Past','None') NOT NULL DEFAULT 'None',
-  `created_at` timestamp NULL DEFAULT current_timestamp()
-) ;
+  `created_at` timestamp NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`review_id`),
+  UNIQUE KEY `uq_review` (`listing_id`,`reviewer_id`),
+  KEY `reviewer_id` (`reviewer_id`),
+  CONSTRAINT `review_ibfk_1` FOREIGN KEY (`listing_id`) REFERENCES `listing` (`listing_id`) ON DELETE CASCADE,
+  CONSTRAINT `review_ibfk_2` FOREIGN KEY (`reviewer_id`) REFERENCES `user` (`user_id`),
+  CONSTRAINT `review_chk_1` CHECK (`rating` between 1 and 5)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 
--- --------------------------------------------------------
+--
+-- Dumping data for table `review`
+--
+
+LOCK TABLES `review` WRITE;
+/*!40000 ALTER TABLE `review` DISABLE KEYS */;
+/*!40000 ALTER TABLE `review` ENABLE KEYS */;
+UNLOCK TABLES;
 
 --
 -- Table structure for table `roommate_profile`
 --
 
+DROP TABLE IF EXISTS `roommate_profile`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `roommate_profile` (
-  `profile_id` int(11) NOT NULL,
+  `profile_id` int(11) NOT NULL AUTO_INCREMENT,
   `user_id` int(11) NOT NULL,
   `budget_min` decimal(10,2) DEFAULT NULL,
   `budget_max` decimal(10,2) DEFAULT NULL,
   `preferred_sex` enum('Male','Female','Any') DEFAULT 'Any',
-  `sleep_schedule` enum('Early Bird','Night Owl','Flexible') DEFAULT NULL,
-  `study_habit` enum('Quiet Environment','Group Study','Flexible') DEFAULT NULL,
-  `cleanliness_level` int(11) DEFAULT NULL,
   `bio` text DEFAULT NULL,
-  `is_active` tinyint(1) DEFAULT 1
-) ;
+  `is_active` tinyint(1) DEFAULT 1,
+  PRIMARY KEY (`profile_id`),
+  UNIQUE KEY `user_id` (`user_id`),
+  CONSTRAINT `roommate_profile_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `user` (`user_id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 
--- --------------------------------------------------------
+--
+-- Dumping data for table `roommate_profile`
+--
+
+LOCK TABLES `roommate_profile` WRITE;
+/*!40000 ALTER TABLE `roommate_profile` DISABLE KEYS */;
+/*!40000 ALTER TABLE `roommate_profile` ENABLE KEYS */;
+UNLOCK TABLES;
 
 --
 -- Table structure for table `user`
 --
 
+DROP TABLE IF EXISTS `user`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `user` (
-  `user_id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL AUTO_INCREMENT,
   `user_code` int(11) NOT NULL,
   `username` varchar(50) NOT NULL,
   `email` varchar(100) NOT NULL,
@@ -300,318 +469,61 @@ CREATE TABLE `user` (
   `id_document_url` varchar(255) DEFAULT NULL,
   `is_id_verified` tinyint(1) DEFAULT 0,
   `account_status` enum('Active','Suspended','Banned') NOT NULL DEFAULT 'Active',
-  `created_at` timestamp NULL DEFAULT current_timestamp()
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `created_at` timestamp NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`user_id`),
+  UNIQUE KEY `username` (`username`),
+  UNIQUE KEY `email` (`email`),
+  KEY `user_code` (`user_code`),
+  CONSTRAINT `user_ibfk_1` FOREIGN KEY (`user_code`) REFERENCES `user_type` (`user_code`)
+) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Dumping data for table `user`
 --
 
-INSERT INTO `user` (`user_id`, `user_code`, `username`, `email`, `password_hash`, `first_name`, `last_name`, `contact_no`, `sex`, `id_type`, `id_document_url`, `is_id_verified`, `account_status`, `created_at`) VALUES
-(1, 1, 'jedel', 'jennifer@gmail.com', 'jedel', 'Jennifer', 'Cruz', '12345', 'Female', NULL, NULL, NULL, 'Active', NULL),
-(2, 1, 'cleo', 'jennifer1@gmail.com', 'cleo', 'Cleo', 'Cruz', '12345', 'Female', NULL, NULL, NULL, 'Active', NULL),
-(3, 2, 'holly', 'jennifer2@gmail.com', 'holly', 'Holly', 'Cruz', '12345', 'Female', NULL, NULL, NULL, 'Banned', NULL),
-(4, 1, 'faith', 'jennifer3@gmail.com', 'faith', 'Kierstien', 'Cruz', '12345', 'Female', NULL, NULL, NULL, 'Active', NULL),
-(5, 2, 'helios', 'jennifer4@gmail.com', 'helios', 'Helios', 'Cruz', '12345', 'Female', NULL, NULL, NULL, 'Active', NULL);
-
--- --------------------------------------------------------
+LOCK TABLES `user` WRITE;
+/*!40000 ALTER TABLE `user` DISABLE KEYS */;
+INSERT INTO `user` VALUES
+(19,3,'admin','admin@hivepup.ph','admin123','Hive','Admin','09000000000','Prefer not to say',NULL,NULL,1,'Active','2026-11-24 05:59:53'),
+(20,2,'jedel','jennifer123@gmail.com','$2y$12$80wQSLFPlbqyqRAeJvFvS.iPRN3B5qFGQoQhTa/srHeNhDPSKF1Cq','Jennifer','Cruz','09112233445','Female','PUP Student ID','uploads/id_6b05283e862199.98792346.png',1,'Active','2026-11-24 06:01:34');
+/*!40000 ALTER TABLE `user` ENABLE KEYS */;
+UNLOCK TABLES;
 
 --
 -- Table structure for table `user_type`
 --
 
+DROP TABLE IF EXISTS `user_type`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `user_type` (
-  `user_code` int(11) NOT NULL,
-  `user_type` varchar(50) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `user_code` int(11) NOT NULL AUTO_INCREMENT,
+  `user_type` varchar(50) NOT NULL,
+  PRIMARY KEY (`user_code`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Dumping data for table `user_type`
 --
 
-INSERT INTO `user_type` (`user_code`, `user_type`) VALUES
-(1, 'Seeker'),
-(2, 'Keeper');
+LOCK TABLES `user_type` WRITE;
+/*!40000 ALTER TABLE `user_type` DISABLE KEYS */;
+INSERT INTO `user_type` VALUES
+(1,'Seeker'),
+(2,'Keeper'),
+(3,'Admin');
+/*!40000 ALTER TABLE `user_type` ENABLE KEYS */;
+UNLOCK TABLES;
+/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
---
--- Indexes for dumped tables
---
-
---
--- Indexes for table `chat_message`
---
-ALTER TABLE `chat_message`
-  ADD PRIMARY KEY (`message_id`),
-  ADD KEY `thread_id` (`thread_id`),
-  ADD KEY `sender_id` (`sender_id`);
-
---
--- Indexes for table `chat_thread`
---
-ALTER TABLE `chat_thread`
-  ADD PRIMARY KEY (`thread_id`),
-  ADD UNIQUE KEY `uq_thread` (`listing_id`,`seeker_id`,`keeper_id`),
-  ADD KEY `seeker_id` (`seeker_id`),
-  ADD KEY `keeper_id` (`keeper_id`);
-
---
--- Indexes for table `house_rule`
---
-ALTER TABLE `house_rule`
-  ADD PRIMARY KEY (`rule_id`),
-  ADD UNIQUE KEY `rule_name` (`rule_name`);
-
---
--- Indexes for table `housing_type`
---
-ALTER TABLE `housing_type`
-  ADD PRIMARY KEY (`type_id`);
-
---
--- Indexes for table `inclusion`
---
-ALTER TABLE `inclusion`
-  ADD PRIMARY KEY (`inclusion_id`),
-  ADD UNIQUE KEY `amenity_name` (`inclusion_name`);
-
---
--- Indexes for table `listing`
---
-ALTER TABLE `listing`
-  ADD PRIMARY KEY (`listing_id`),
-  ADD KEY `property_id` (`property_id`),
-  ADD KEY `keeper_id` (`keeper_id`),
-  ADD KEY `idx_listing_search` (`status`,`monthly_rent`,`property_id`);
-
---
--- Indexes for table `listing_inclusion`
---
-ALTER TABLE `listing_inclusion`
-  ADD PRIMARY KEY (`listing_id`,`inclusion_id`),
-  ADD KEY `amenity_id` (`inclusion_id`);
-
---
--- Indexes for table `listing_photo`
---
-ALTER TABLE `listing_photo`
-  ADD PRIMARY KEY (`photo_id`),
-  ADD KEY `listing_id` (`listing_id`);
-
---
--- Indexes for table `listing_rule`
---
-ALTER TABLE `listing_rule`
-  ADD PRIMARY KEY (`listing_id`,`rule_id`),
-  ADD KEY `rule_id` (`rule_id`);
-
---
--- Indexes for table `property`
---
-ALTER TABLE `property`
-  ADD PRIMARY KEY (`property_id`),
-  ADD KEY `type_id` (`type_id`);
-
---
--- Indexes for table `report`
---
-ALTER TABLE `report`
-  ADD PRIMARY KEY (`report_id`),
-  ADD UNIQUE KEY `uq_report` (`listing_id`,`reporter_id`),
-  ADD KEY `reporter_id` (`reporter_id`),
-  ADD KEY `reviewed_by` (`reviewed_by`);
-
---
--- Indexes for table `review`
---
-ALTER TABLE `review`
-  ADD PRIMARY KEY (`review_id`),
-  ADD UNIQUE KEY `uq_review` (`listing_id`,`reviewer_id`),
-  ADD KEY `reviewer_id` (`reviewer_id`);
-
---
--- Indexes for table `roommate_profile`
---
-ALTER TABLE `roommate_profile`
-  ADD PRIMARY KEY (`profile_id`),
-  ADD UNIQUE KEY `user_id` (`user_id`);
-
---
--- Indexes for table `user`
---
-ALTER TABLE `user`
-  ADD PRIMARY KEY (`user_id`),
-  ADD UNIQUE KEY `username` (`username`),
-  ADD UNIQUE KEY `email` (`email`),
-  ADD KEY `user_code` (`user_code`);
-
---
--- Indexes for table `user_type`
---
-ALTER TABLE `user_type`
-  ADD PRIMARY KEY (`user_code`);
-
---
--- AUTO_INCREMENT for dumped tables
---
-
---
--- AUTO_INCREMENT for table `chat_message`
---
-ALTER TABLE `chat_message`
-  MODIFY `message_id` int(11) NOT NULL AUTO_INCREMENT;
-
---
--- AUTO_INCREMENT for table `chat_thread`
---
-ALTER TABLE `chat_thread`
-  MODIFY `thread_id` int(11) NOT NULL AUTO_INCREMENT;
-
---
--- AUTO_INCREMENT for table `house_rule`
---
-ALTER TABLE `house_rule`
-  MODIFY `rule_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
-
---
--- AUTO_INCREMENT for table `housing_type`
---
-ALTER TABLE `housing_type`
-  MODIFY `type_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
-
---
--- AUTO_INCREMENT for table `inclusion`
---
-ALTER TABLE `inclusion`
-  MODIFY `inclusion_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
-
---
--- AUTO_INCREMENT for table `listing`
---
-ALTER TABLE `listing`
-  MODIFY `listing_id` int(11) NOT NULL AUTO_INCREMENT;
-
---
--- AUTO_INCREMENT for table `listing_photo`
---
-ALTER TABLE `listing_photo`
-  MODIFY `photo_id` int(11) NOT NULL AUTO_INCREMENT;
-
---
--- AUTO_INCREMENT for table `property`
---
-ALTER TABLE `property`
-  MODIFY `property_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
-
---
--- AUTO_INCREMENT for table `report`
---
-ALTER TABLE `report`
-  MODIFY `report_id` int(11) NOT NULL AUTO_INCREMENT;
-
---
--- AUTO_INCREMENT for table `review`
---
-ALTER TABLE `review`
-  MODIFY `review_id` int(11) NOT NULL AUTO_INCREMENT;
-
---
--- AUTO_INCREMENT for table `roommate_profile`
---
-ALTER TABLE `roommate_profile`
-  MODIFY `profile_id` int(11) NOT NULL AUTO_INCREMENT;
-
---
--- AUTO_INCREMENT for table `user`
---
-ALTER TABLE `user`
-  MODIFY `user_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=17;
-
---
--- AUTO_INCREMENT for table `user_type`
---
-ALTER TABLE `user_type`
-  MODIFY `user_code` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
-
---
--- Constraints for dumped tables
---
-
---
--- Constraints for table `chat_message`
---
-ALTER TABLE `chat_message`
-  ADD CONSTRAINT `chat_message_ibfk_1` FOREIGN KEY (`thread_id`) REFERENCES `chat_thread` (`thread_id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `chat_message_ibfk_2` FOREIGN KEY (`sender_id`) REFERENCES `user` (`user_id`);
-
---
--- Constraints for table `chat_thread`
---
-ALTER TABLE `chat_thread`
-  ADD CONSTRAINT `chat_thread_ibfk_1` FOREIGN KEY (`listing_id`) REFERENCES `listing` (`listing_id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `chat_thread_ibfk_2` FOREIGN KEY (`seeker_id`) REFERENCES `user` (`user_id`),
-  ADD CONSTRAINT `chat_thread_ibfk_3` FOREIGN KEY (`keeper_id`) REFERENCES `user` (`user_id`);
-
---
--- Constraints for table `listing`
---
-ALTER TABLE `listing`
-  ADD CONSTRAINT `listing_ibfk_1` FOREIGN KEY (`property_id`) REFERENCES `property` (`property_id`),
-  ADD CONSTRAINT `listing_ibfk_2` FOREIGN KEY (`keeper_id`) REFERENCES `user` (`user_id`);
-
---
--- Constraints for table `listing_inclusion`
---
-ALTER TABLE `listing_inclusion`
-  ADD CONSTRAINT `listing_inclusion_ibfk_1` FOREIGN KEY (`listing_id`) REFERENCES `listing` (`listing_id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `listing_inclusion_ibfk_2` FOREIGN KEY (`inclusion_id`) REFERENCES `inclusion` (`inclusion_id`) ON DELETE CASCADE;
-
---
--- Constraints for table `listing_photo`
---
-ALTER TABLE `listing_photo`
-  ADD CONSTRAINT `listing_photo_ibfk_1` FOREIGN KEY (`listing_id`) REFERENCES `listing` (`listing_id`) ON DELETE CASCADE;
-
---
--- Constraints for table `listing_rule`
---
-ALTER TABLE `listing_rule`
-  ADD CONSTRAINT `listing_rule_ibfk_1` FOREIGN KEY (`listing_id`) REFERENCES `listing` (`listing_id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `listing_rule_ibfk_2` FOREIGN KEY (`rule_id`) REFERENCES `house_rule` (`rule_id`) ON DELETE CASCADE;
-
---
--- Constraints for table `property`
---
-ALTER TABLE `property`
-  ADD CONSTRAINT `property_ibfk_1` FOREIGN KEY (`type_id`) REFERENCES `housing_type` (`type_id`);
-
---
--- Constraints for table `report`
---
-ALTER TABLE `report`
-  ADD CONSTRAINT `report_ibfk_1` FOREIGN KEY (`listing_id`) REFERENCES `listing` (`listing_id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `report_ibfk_2` FOREIGN KEY (`reporter_id`) REFERENCES `user` (`user_id`),
-  ADD CONSTRAINT `report_ibfk_3` FOREIGN KEY (`reviewed_by`) REFERENCES `user` (`user_id`);
-
---
--- Constraints for table `review`
---
-ALTER TABLE `review`
-  ADD CONSTRAINT `review_ibfk_1` FOREIGN KEY (`listing_id`) REFERENCES `listing` (`listing_id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `review_ibfk_2` FOREIGN KEY (`reviewer_id`) REFERENCES `user` (`user_id`);
-
---
--- Constraints for table `roommate_profile`
---
-ALTER TABLE `roommate_profile`
-  ADD CONSTRAINT `roommate_profile_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `user` (`user_id`) ON DELETE CASCADE;
-
---
--- Constraints for table `user`
---
-ALTER TABLE `user`
-  ADD CONSTRAINT `user_ibfk_1` FOREIGN KEY (`user_code`) REFERENCES `user_type` (`user_code`);
-COMMIT;
-
+/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
+/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
+/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
+
+-- Dump completed on 2026-11-24 14:40:28

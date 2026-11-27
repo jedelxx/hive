@@ -198,7 +198,7 @@ $stmt->close();
 
             <a href="chat.php" style="text-decoration:none; color:#374151;">Messages</a>
             <a href="settings.php" style="text-decoration:none; color:#374151; font-weight:bold;">
-                <?= htmlspecialchars($_SESSION['first_name']) ?> (Settings)
+                Settings
             </a>
         <?php else: ?>
             <!-- Guest Links -->
@@ -215,7 +215,6 @@ $stmt->close();
 <?php endif; ?>
 
 <div class="layout">
-    <!-- FILTER SIDEBAR -->
     <aside class="sidebar">
         <h3 style="margin-top:0;">Filter Hives</h3>
         <form method="GET" action="hives_hub.php">

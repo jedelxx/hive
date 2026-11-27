@@ -1,2 +1,8 @@
 uploads/*
 !uploads/.gitkeep
+
+node_modules/
+frontend/node_modules/
+frontend/dist/
+
+config_secrets.php
