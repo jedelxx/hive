@@ -3,11 +3,19 @@
 All notable features, fixes, and architectural updates for **Hive** are documented in this file.
 
 ## [Unreleased]
-* Cloudflare R2 storage helper (`r2_storage.php`) and upload migration for `register.php` and `settings.php`.
+* Migration of property listing photo uploads and tenant review proof uploads to Cloudflare R2.
 * In-app messaging (`chat.php`) between Seekers and Keepers.
 * Roommate finder and compatibility matching module.
 
 ---
+## [v0.1.1.1] - 2026-11-29
+### Added
+* **Cloudflare R2 Storage Helper (`r2_storage.php`):** Built a centralized S3-compatible storage layer (`getR2Client`, `uploadToR2`, `getR2SignedUrl`, `deleteFromR2`) supporting private bucket uploads, 15-minute temporary presigned view URLs, automated object deletion, and backward compatibility with legacy local `uploads/` paths.
+* **Binary MIME Type Verification:** Added `finfo_file()` signature inspection in `register.php` and `settings.php` to verify uploaded JPG, PNG, and PDF documents prior to cloud upload.
+
+### Changed
+* **Registration & Account Settings Uploads (`register.php`, `settings.php`):** Migrated Seeker PUP COR and Keeper valid ID uploads/re-uploads from local XAMPP disk storage (`uploads/ids/`) to the private Cloudflare R2 `hive-uploads` bucket, and wrapped user document preview links in `getR2SignedUrl()`.* **Admin Moderation & Cleanup (`admin_dashboard.php`):** Wrapped pending verification document links (`id_document_url`) and review proof links (`proof_document_url`) in temporary 15-minute presigned R2 URLs, and added automated `deleteFromR2()` cleanup when rejecting submitted documents or rolling back failed database writes.
+
 ## [v0.1.1] - 2026-11-29
 ### Added 
 * **Dependency Management (Composer):** Initialized `composer.json` and `composer.lock` and installed `aws/aws-sdk-php` in preparation for Cloudflare R2 object storage integration.* **Cloudflare R2 Secret Template:** Added placeholder R2 configuration constants (`R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`, `R2_ENDPOINT`) to `config_secrets.example.php`.

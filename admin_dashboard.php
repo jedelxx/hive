@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once 'db_connect.php';
+require_once 'r2_storage.php';
 
 // Restrict access strictly to Admin (user_code = 3)
 if (!isset($_SESSION['user_id']) || (int)$_SESSION['user_code'] !== 3) {
@@ -29,6 +30,14 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['action'])) {
     // B. Reject Seeker COR or Keeper ID
     elseif ($action === 'reject_id' && isset($_POST['target_user_id'])) {
         $target_id = (int) $_POST['target_user_id'];
+
+        // Fetch existing R2 object key before clearing it from the database
+        $fetch_doc = $conn->prepare("SELECT id_document_url FROM user WHERE user_id = ? AND user_code IN (1, 2) LIMIT 1");
+        $fetch_doc->bind_param("i", $target_id);
+        $fetch_doc->execute();
+        $doc_row = $fetch_doc->get_result()->fetch_assoc();
+        $fetch_doc->close();
+
         // Seekers remain Active in read-only mode and must re-upload; Keepers are suspended
         $stmt = $conn->prepare("
             UPDATE user 
@@ -39,7 +48,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['action'])) {
         ");
         $stmt->bind_param("i", $target_id);
         if ($stmt->execute()) {
-            $message = "Verification document rejected. User must re-submit a valid document.";
+            if (!empty($doc_row['id_document_url'])) {
+                deleteFromR2($doc_row['id_document_url']);
+            }
+            $message = "Verification document rejected and removed from storage. User must re-submit a valid document.";
         }
         $stmt->close();
     }
@@ -278,7 +290,10 @@ $pending_reviews = $conn->query("
             </thead>
             <tbody>
                 <?php foreach ($pending_verifications as $u): ?>
-                    <?php $is_seeker = ((int)$u['user_code'] === 1); ?>
+                    <?php
+                        $is_seeker = ((int)$u['user_code'] === 1);
+                        $signed_id_url = getR2SignedUrl($u['id_document_url'], '+15 minutes');
+                    ?>
                     <tr>
                         <td>#<?= $u['user_id'] ?></td>
                         <td>
@@ -290,9 +305,13 @@ $pending_reviews = $conn->query("
                         <td><?= htmlspecialchars($u['username']) ?><br><small><?= htmlspecialchars($u['email']) ?></small></td>
                         <td><?= htmlspecialchars($u['id_type'] ?? 'N/A') ?></td>
                         <td>
-                            <a href="<?= htmlspecialchars($u['id_document_url']) ?>" target="_blank">
-                                <?= $is_seeker ? 'View PUP COR' : 'View ID File' ?>
-                            </a>
+                            <?php if ($signed_id_url): ?>
+                                <a href="<?= htmlspecialchars($signed_id_url) ?>" target="_blank">
+                                    <?= $is_seeker ? 'View PUP COR' : 'View ID File' ?>
+                                </a>
+                            <?php else: ?>
+                                <span style="color:#9ca3af;">Unavailable</span>
+                            <?php endif; ?>
                         </td>
                         <td><span class="badge bg-yellow"><?= htmlspecialchars($u['account_status']) ?></span></td>
                         <td>
@@ -333,6 +352,11 @@ $pending_reviews = $conn->query("
             </thead>
             <tbody>
                 <?php foreach ($pending_reviews as $rev): ?>
+                    <?php
+                        $signed_proof_url = !empty($rev['proof_document_url'])
+                            ? getR2SignedUrl($rev['proof_document_url'], '+15 minutes')
+                            : null;
+                    ?>
                     <tr>
                         <td>#<?= $rev['review_id'] ?></td>
                         <td><?= htmlspecialchars($rev['listing_title']) ?></td>
@@ -345,8 +369,8 @@ $pending_reviews = $conn->query("
                             <small><?= htmlspecialchars($rev['comment']) ?></small>
                         </td>
                         <td>
-                            <?php if (!empty($rev['proof_document_url'])): ?>
-                                <a href="<?= htmlspecialchars($rev['proof_document_url']) ?>" target="_blank">View Proof Photo</a>
+                            <?php if ($signed_proof_url): ?>
+                                <a href="<?= htmlspecialchars($signed_proof_url) ?>" target="_blank">View Proof Photo</a>
                             <?php else: ?>
                                 <span style="color:#9ca3af;">No proof attached</span>
                             <?php endif; ?>

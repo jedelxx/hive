@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once 'db_connect.php';
+require_once 'r2_storage.php';
 
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");
@@ -31,28 +32,26 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 : "Please select a valid ID document to upload.";
         } else {
             $allowed_ext = ['jpg', 'jpeg', 'png', 'pdf'];
-            $ext = strtolower(pathinfo($_FILES['id_document']['name'], PATHINFO_EXTENSION));
+            $allowed_mimes = [
+                'image/jpeg',
+                'image/png',
+                'application/pdf'
+            ];
 
-            if (!in_array($ext, $allowed_ext, true)) {
-                $error = "Invalid file format. Please upload JPG, PNG, or PDF.";
+            $ext = strtolower(pathinfo($_FILES['id_document']['name'], PATHINFO_EXTENSION));
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+            $mime_type = finfo_file($finfo, $_FILES['id_document']['tmp_name']);
+            finfo_close($finfo);
+
+            if (!in_array($ext, $allowed_ext, true) || !in_array($mime_type, $allowed_mimes, true)) {
+                $error = "Invalid file format. Please upload a valid JPG, PNG, or PDF.";
             } elseif ($_FILES['id_document']['size'] > 5 * 1024 * 1024) {
                 $error = "Uploaded document exceeds the 5MB limit.";
             } else {
-                $upload_dir = 'uploads/ids/';
-                if (!is_dir($upload_dir)) {
-                    mkdir($upload_dir, 0777, true);
-                }
+                // Upload new document to Cloudflare R2 under 'ids/'
+                $new_r2_key = uploadToR2($_FILES['id_document']['tmp_name'], 'ids', $ext, $mime_type);
 
-                $prefix      = ($user_code === 1) ? 'cor_' : 'id_';
-                $filename    = $prefix . uniqid() . '.' . $ext;
-                $target_path = $upload_dir . $filename;
-
-                if (move_uploaded_file($_FILES['id_document']['tmp_name'], $target_path)) {
-                    // Delete old rejected file if present
-                    if (!empty($curr['id_document_url']) && file_exists($curr['id_document_url'])) {
-                        @unlink($curr['id_document_url']);
-                    }
-
+                if ($new_r2_key !== false) {
                     $new_id_type = ($user_code === 1)
                         ? 'PUP Certificate of Registration (COR)'
                         : trim($_POST['id_type']);
@@ -63,16 +62,22 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         SET id_type = ?, id_document_url = ?, is_id_verified = 0 
                         WHERE user_id = ?
                     ");
-                    $upd->bind_param("ssi", $new_id_type, $target_path, $user_id);
+                    $upd->bind_param("ssi", $new_id_type, $new_r2_key, $user_id);
 
                     if ($upd->execute()) {
+                        // Delete old rejected file from R2 (or legacy local uploads/)
+                        if (!empty($curr['id_document_url']) && $curr['id_document_url'] !== $new_r2_key) {
+                            deleteFromR2($curr['id_document_url']);
+                        }
                         $message = "Document re-uploaded! Your verification is now Pending Admin Review.";
                     } else {
+                        // Clean up the newly uploaded R2 object if DB update failed
+                        deleteFromR2($new_r2_key);
                         $error = "Database error while updating verification document.";
                     }
                     $upd->close();
                 } else {
-                    $error = "Failed to save uploaded document.";
+                    $error = "Failed to upload document to cloud storage. Please try again.";
                 }
             }
         }
@@ -110,6 +115,7 @@ $user = $stmt->get_result()->fetch_assoc();
 $stmt->close();
 
 $verif_status = (int) $user['is_id_verified']; // 1 = Verified, 0 = Pending, 2/-1 = Rejected
+$signed_doc_url = !empty($user['id_document_url']) ? getR2SignedUrl($user['id_document_url'], '+15 minutes') : null;
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -190,7 +196,9 @@ $verif_status = (int) $user['is_id_verified']; // 1 = Verified, 0 = Pending, 2/-
                 <strong style="color: #92400e; font-size: 14px;">⏳ <?= htmlspecialchars($doc_label) ?> Under Review</strong>
                 <p style="font-size: 13px; color: #4b5563; margin: 4px 0 0;">
                     Your submitted document is waiting for administrator approval.
-                    <a href="<?= htmlspecialchars($user['id_document_url']) ?>" target="_blank" style="color: #d97706;">View file</a>
+                    <?php if ($signed_doc_url): ?>
+                        <a href="<?= htmlspecialchars($signed_doc_url) ?>" target="_blank" style="color: #d97706;">View file</a>
+                    <?php endif; ?>
                 </p>
 
             <?php else: ?>

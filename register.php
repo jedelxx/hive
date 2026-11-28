@@ -2,6 +2,7 @@
 session_start();
 require_once 'db_connect.php';
 require_once 'turnstile_verify.php';
+require_once 'r2_storage.php';
 
 $message = "";
 
@@ -32,28 +33,32 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     : "Please upload a valid ID document.";
             } else {
                 $allowed_ext = ['jpg', 'jpeg', 'png', 'pdf'];
-                $ext = strtolower(pathinfo($_FILES['id_document']['name'], PATHINFO_EXTENSION));
+                $allowed_mimes = [
+                    'image/jpeg',
+                    'image/png',
+                    'application/pdf'
+                ];
 
-                if (!in_array($ext, $allowed_ext, true)) {
-                    $message = "Invalid file format. Please upload JPG, PNG, or PDF.";
+                $ext = strtolower(pathinfo($_FILES['id_document']['name'], PATHINFO_EXTENSION));
+                $finfo = finfo_open(FILEINFO_MIME_TYPE);
+                $mime_type = finfo_file($finfo, $_FILES['id_document']['tmp_name']);
+                finfo_close($finfo);
+
+                if (!in_array($ext, $allowed_ext, true) || !in_array($mime_type, $allowed_mimes, true)) {
+                    $message = "Invalid file format. Please upload a valid JPG, PNG, or PDF.";
                 } elseif ($_FILES['id_document']['size'] > 5 * 1024 * 1024) {
                     $message = "Uploaded document exceeds the 5MB limit.";
                 } else {
-                    $upload_dir = 'uploads/ids/';
-                    if (!is_dir($upload_dir)) {
-                        mkdir($upload_dir, 0777, true);
-                    }
-                    $prefix = ($user_code === 1) ? 'cor_' : 'id_';
-                    $filename = $prefix . uniqid() . '.' . $ext;
-                    $target_path = $upload_dir . $filename;
+                    // Upload to Cloudflare R2 under the 'ids/' folder
+                    $r2_object_key = uploadToR2($_FILES['id_document']['tmp_name'], 'ids', $ext, $mime_type);
 
-                    if (move_uploaded_file($_FILES['id_document']['tmp_name'], $target_path)) {
-                        $id_doc_url = $target_path;
+                    if ($r2_object_key !== false) {
+                        $id_doc_url = $r2_object_key;
                         $id_type = ($user_code === 1)
                             ? 'PUP Certificate of Registration (COR)'
                             : trim($_POST['id_type']);
                     } else {
-                        $message = "Failed to save uploaded document.";
+                        $message = "Failed to upload document to cloud storage. Please try again.";
                     }
                 }
             }
@@ -78,6 +83,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     exit();
                 }
             } catch (mysqli_sql_exception $e) {
+                // Clean up uploaded R2 object if database insert fails (e.g., duplicate username/email)
+                if (!empty($id_doc_url)) {
+                    deleteFromR2($id_doc_url);
+                }
+
                 if ($e->getCode() === 1062) {
                     $message = "Username or email is already taken.";
                 } else {
