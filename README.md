@@ -14,6 +14,7 @@ Hive is a web-based boarding house, dormitory, and roommate finder platform buil
 ## Local Setup Instructions
 
 1. **Clone the Repository**
+   
    Place the project folder inside your XAMPP `htdocs` directory:
    ```bash
    git clone https://github.com/jedelxx/hive.git C:\xampp\htdocs\hive
