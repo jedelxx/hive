@@ -1,8 +1,10 @@
 @import "tailwindcss";
+@import url("https://fonts.googleapis.com/css2?family=Berkshire+Swash&display=swap");
 
 @theme {
   --font-poppins: "Poppins", sans-serif;
   --font-manrope: "Manrope", sans-serif;
+  --font-berkshire: "Berkshire Swash", cursive;
 }
 
 body {
@@ -29,13 +31,13 @@ textarea {
   cursor: text;
 }
 
-@keyframes float {
+@keyframes hiveSway {
   0%,
   100% {
-    transform: translateY(0) rotate(-3deg);
+    transform: rotate(-5deg);
   }
   50% {
-    transform: translateY(-12px) rotate(3deg);
+    transform: rotate(5deg);
   }
 }
 

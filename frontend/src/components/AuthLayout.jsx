@@ -2,6 +2,7 @@ import bee from "../assets/bee.svg";
 import beehive from "../assets/beehive.svg";
 import honeyDrips from "../assets/honeydrip.svg";
 import honeycombBg from "../assets/honeycomb-bg.jpg";
+import buildings from "../assets/buildings.svg";
 
 export default function AuthLayout({
   title,
@@ -31,43 +32,50 @@ export default function AuthLayout({
           src={honeyDrips}
           alt=""
           aria-hidden="true"
-          className="pointer-events-none absolute left-0 top-0 z-20 h-auto w-full"
+          className="pointer-events-none absolute left-0 top-0 z-0 h-auto w-full max-h-32 object-fill sm:max-h-36 md:max-h-40 lg:max-h-44 xl:max-h-none"
         />
       )}
 
       {/* main content */}
       <main
-        className={`relative z-10 mx-auto flex w-full flex-1 items-center justify-center px-5 md:px-10 ${
+        className={`relative z-10 mx-auto flex w-full flex-1 items-center px-4 pt-14 sm:px-6 sm:pt-16 md:px-10 ${
           isLogin
-            ? "max-w-6xl grid grid-cols-1 gap-8 pb-10 pt-36 lg:grid-cols-[1fr_440px] lg:gap-16 lg:pb-12 lg:pt-40"
-            : "max-w-none py-10"
+            ? "max-w-6xl grid-cols-1 grid items-center gap-6 pb-4 sm:pb-6 lg:grid-cols-[minmax(0,1fr)_minmax(380px,440px)] lg:gap-8 lg:pb-2 lg:pt-12 xl:gap-12"
+            : "max-w-none justify-center pb-12 pt-12 sm:pb-16 sm:pt-16"
         }`}
       >
         {/* login/welcome section */}
         {isLogin && (
-          <section className="mx-auto flex w-full max-w-lg flex-col items-center text-center lg:items-start lg:text-left">
+          <section className="relative mx-auto flex w-full max-w-lg translate-y-2 flex-col items-center text-center lg:translate-y-5 lg:items-start lg:text-left">
             <p className="font-manrope text-s font-extrabold tracking-[0.4em] text-[#8E5915]">
               WELCOME TO HIVE
             </p>
 
-            <h1 className="font-poppins mt-4 text-3xl font-extrabold leading-tight text-[#1A141A] sm:text-4xl lg:text-5xl">
+            <h1 className="font-poppins mt-3 text-3xl font-extrabold leading-tight text-[#1A141A] sm:text-4xl lg:text-4xl xl:text-5xl">
               Find dormitories
               <span className="block text-[#E59312]">near PUP Main.</span>
             </h1>
 
-            <p className="font-manrope mt-5 max-w-md text-sm leading-7 text-[#423738] sm:text-base">
+            <p className="font-manrope mt-4 max-w-md text-sm leading-7 text-[#423738] sm:text-base">
               Discover potential roommates with similar preferences and connect
               with landlords using our secure chat system.
             </p>
 
-            <img
-              src={beehive}
-              alt="Beehive illustration"
-              className="h-32 w-32 animate-[float_4s_ease-in-out_infinite] object-contain margin-top-10 sm:h-30 sm:w-30 lg:mt-10 lg:h-40 lg:w-40"
-            />
+            {/* buildings illustrations */}
+            <div className="flex h-28 w-full items-end justify-center gap-1 sm:h-32 lg:h-36">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <img
+                  key={index}
+                  src={buildings}
+                  alt=""
+                  aria-hidden="true"
+                  className="h-full w-1/4 object-contain opacity-50 object-bottom"
+                />
+              ))}
+            </div>
 
             {/* HIVE features summary */}
-            <div className="mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-3 lg:justify-start">
+            <div className="relative z-10 -mt-1 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 lg:justify-start">
               <div className="flex items-center gap-2">
                 <span className="flex h-4 w-4 items-center justify-center rounded-full border border-[#E59312] text-[10px] font-bold text-[#E59312]">
                   ✓
@@ -136,7 +144,7 @@ export default function AuthLayout({
             <img
               src={bee}
               alt=""
-              className="absolute -bottom-8 right-[25%] h-7 w-7 animate-[beeFlying5_7s_ease-in-out_infinite]"
+              className="absolute -bottom-5 right-[40%] h-7 w-7 animate-[beeFlying5_7s_ease-in-out_infinite]"
             />
 
             {!isLogin && (
@@ -174,7 +182,7 @@ export default function AuthLayout({
 
             <div
               className={`relative z-10 px-5 pb-7 sm:px-8 ${
-                isLogin ? "pt-11" : "pt-12"
+                isLogin ? "pt-11" : "pt-13 sm:pt-18"
               }`}
             >
               <div className="mb-7 text-center">
@@ -194,21 +202,30 @@ export default function AuthLayout({
               </div>
             </div>
           </div>
+
+          {/* floating beehive - login page only */}
+          {isLogin && (
+            <img
+              src={beehive}
+              alt="Beehive illustration"
+              className="pointer-events-none absolute left-1/2 top-full -mt-1 h-12 w-12 -translate-x-1/2 animate-[hiveSway_4s_ease-in-out_infinite] object-contain sm:h-12 sm:w-12 lg:h-14 lg:w-14 xl:w-25 xl:h-25"
+            />
+          )}
         </section>
       </main>
 
       {/* footer logo and slogan */}
-      <footer className="relative z-10 flex w-full flex-col items-start px-5 pb-5 pt-2 lg:px-10 lg:pb-7">
+      <footer className="relative z-10 flex w-full flex-col items-start px-5 pb-3 pt-1 sm:pb-4 lg:px-10">
         <div className="flex items-center gap-2">
           <img src={bee} alt="" className="h-8 w-8" />
 
-          <span className="font-poppins text-xl font-black tracking-[0.2em] text-[#8E5915]">
+          <span className="font-berkshire text-2xl font-black tracking-wide text-[#8E5915]">
             HIVE
           </span>
         </div>
 
-        <p className="font-manrope ml-10 mt-1 text-[14px] italic text-[#8E5915]">
-          Find the hive where you beelong.
+        <p className="font-manrope ml-10 mt-1 text-sm italic text-[#70420F]">
+          Find the place where you beelong.
         </p>
       </footer>
     </div>
